@@ -28,31 +28,27 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var btn = document.getElementById('btn');
-            var input = document.getElementById('pokemonName');
-            var grid = document.getElementById('grid');
-            var status = document.getElementById('status');
+            const btn = document.getElementById('btn');
+            const input = document.getElementById('pokemonName');
+            const grid = document.getElementById('grid');
+            const status = document.getElementById('status');
 
             async function buscar() {
-                var nombre = input.value.trim();
+                const nombre = input.value.trim();
                 if (nombre.length < 2) return alert('Mínimo 2 letras');
 
                 grid.innerHTML = '';
                 status.textContent = 'Cargando...';
 
                 try {
-                    // CONSTRUCCIÓN BLINDADA DE URL
-                    var p = 'https://';
-                    var d = 'api.tcgdex.net/v2/en/cards';
-                    var q = '?name=' + encodeURIComponent(nombre);
-                    var urlFinal = p + d + q;
-                    
+                    // Aquí usamos tu backend (proxy) para evitar CORS
+                    const urlFinal = '/api/cards?name=' + encodeURIComponent(nombre);
                     console.log('Solicitando a:', urlFinal);
 
-                    var res = await fetch(urlFinal);
+                    const res = await fetch(urlFinal);
                     if (!res.ok) throw new Error('Error en la respuesta');
 
-                    var data = await res.json();
+                    const data = await res.json();
                     status.textContent = '';
 
                     if (!data || data.length === 0) {
@@ -60,33 +56,36 @@
                         return;
                     }
 
-                    data.slice(0, 20).forEach(function(card) {
-                        var cardDiv = document.createElement('div');
+                    data.slice(0, 20).forEach(card => {
+                        const cardDiv = document.createElement('div');
                         cardDiv.className = 'card';
-                        
-                        var cardName = card.name || 'N/A';
-                        var setName = (card.set && card.set.name) ? card.set.name : 'N/A';
-                        var imgUrl = card.image ? card.image + '/low.jpg' : 'via.placeholder.com';
 
-                        cardDiv.innerHTML = 
-                            '<img src="' + imgUrl + '">' +
-                            '<h3>' + cardName + '</h3>' +
-                            '<p>Set: ' + setName + '</p>' +
-                            '<a href="www.tcgplayer.com' + encodeURIComponent(cardName) + '" target="_blank" class="price-link">VER PRECIOS</a>';
-                        
+                        const cardName = card.name || 'N/A';
+                        const setName = (card.set && card.set.name) ? card.set.name : 'N/A';
+                        const imgUrl = card.image ? card.image + '/low.jpg' : 'https://via.placeholder.com/250x350?text=No+Image';
+
+                        cardDiv.innerHTML = `
+                            <img src="${imgUrl}">
+                            <h3>${cardName}</h3>
+                            <p>Set: ${setName}</p>
+                            <a href="https://www.tcgplayer.com/search/product?productLine=pokemon&q=${encodeURIComponent(cardName)}" target="_blank" class="price-link">VER PRECIOS</a>
+                        `;
+
                         grid.appendChild(cardDiv);
                     });
 
                 } catch (err) {
                     console.error('Error:', err);
-                    status.textContent = 'Error al conectar. Revisa tu internet.';
+                    status.textContent = 'Error al conectar. Revisa tu internet o el servidor.';
                 }
             }
 
             btn.addEventListener('click', buscar);
-            input.addEventListener('keypress', function(e) { if (e.key === 'Enter') buscar(); });
+            input.addEventListener('keypress', e => { if (e.key === 'Enter') buscar(); });
         });
     </script>
 </body>
 </html>
+
+
 
