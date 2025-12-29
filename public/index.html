@@ -41,7 +41,7 @@
                 status.textContent = 'Cargando...';
 
                 try {
-                    // Aquí usamos tu backend (proxy) para evitar CORS
+                    // Llamada a tu backend
                     const urlFinal = '/api/cards?name=' + encodeURIComponent(nombre);
                     console.log('Solicitando a:', urlFinal);
 
@@ -64,11 +64,13 @@
                         const setName = (card.set && card.set.name) ? card.set.name : 'N/A';
                         const imgUrl = card.image ? card.image + '/low.jpg' : 'https://via.placeholder.com/250x350?text=No+Image';
 
+                        const urlTcgPlayer = "https://www.tcgplayer.com/search/product?productLine=pokemon&q=" + encodeURIComponent(cardName);
+
                         cardDiv.innerHTML = `
                             <img src="${imgUrl}">
                             <h3>${cardName}</h3>
                             <p>Set: ${setName}</p>
-                            <a href="https://www.tcgplayer.com/search/product?productLine=pokemon&q=${encodeURIComponent(cardName)}" target="_blank" class="price-link">VER PRECIOS</a>
+                            <a href="${urlTcgPlayer}" target="_blank" class="price-link">VER PRECIOS</a>
                         `;
 
                         grid.appendChild(cardDiv);
@@ -86,6 +88,7 @@
     </script>
 </body>
 </html>
+
 
 
 
