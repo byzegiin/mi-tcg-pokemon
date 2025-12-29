@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Pokémon TCG - Precios Reales 2025</title>
+    <title>Pokémon TCG Finder 2025</title>
     <style>
         body { background: #0a0a0a; color: #fff; font-family: sans-serif; text-align: center; padding: 0; margin: 0; }
         .search-container { position: sticky; top: 0; background: #111; padding: 20px; z-index: 100; border-bottom: 2px solid #ffd700; }
@@ -14,14 +14,14 @@
         .card h3 { color: #ffd700; font-size: 1.1em; margin: 0 0 5px; }
         .card p { font-size: 0.85em; margin: 3px 0; color: #ccc; }
         .price-link { display: block; margin-top: 15px; color: #000; background: #ffd700; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; }
-        #status { color: #ffd700; margin-top: 10px; font-size: 0.9em; height: 20px; }
-        #sentinel { height: 100px; width: 100%; float: left; }
+        #status { color: #ffd700; margin-top: 10px; height: 20px; }
+        #sentinel { height: 100px; width: 100%; }
     </style>
 </head>
 <body>
 
     <div class="search-container">
-        <h1>Pokémon TCG Finder</h1>
+        <h1>Pokémon TCG Live</h1>
         <input type="text" id="pokemonName" placeholder="Busca un Pokémon...">
         <button id="btnBuscar">BUSCAR</button>
         <div id="status"></div>
@@ -49,23 +49,23 @@
                 grid.innerHTML = '';
                 todasLasCartas = [];
                 indiceActual = 0;
-                status.textContent = 'Buscando en internet...';
+                status.textContent = 'Buscando...';
 
                 try {
-                    // URL con protocolo completo
+                    // Petición a la API externa
                     var url = 'api.tcgdex.net' + encodeURIComponent(nombre);
                     var res = await fetch(url);
                     todasLasCartas = await res.json();
 
                     if (!todasLasCartas || todasLasCartas.length === 0) {
-                        status.textContent = 'No se encontraron resultados.';
+                        status.textContent = 'No hay resultados.';
                         return;
                     }
 
                     status.textContent = 'Encontradas ' + todasLasCartas.length + ' cartas.';
                     cargarMas();
                 } catch (err) {
-                    status.textContent = 'Error al conectar con la API.';
+                    status.textContent = 'Error de conexión.';
                 }
             }
 
@@ -77,20 +77,20 @@
                     var cardDiv = document.createElement('div');
                     cardDiv.className = 'card';
                     
-                    var nombre = card.name || 'N/A';
-                    var set = (card.set && card.set.name) ? card.set.name : 'N/A';
+                    var cardName = card.name || 'N/A';
+                    var setName = (card.set && card.set.name) ? card.set.name : 'N/A';
                     var img = card.image ? card.image + '/low.jpg' : 'via.placeholder.com';
                     
-                    // CORRECCIÓN: El enlace DEBE empezar con https://
-                    var linkPrecio = 'www.tcgplayer.com' + encodeURIComponent(nombre + ' ' + set);
+                    // CORRECCIÓN FINAL: URL con protocolo completo forzado
+                    var linkExterno = 'www.tcgplayer.com' + encodeURIComponent(cardName + ' ' + setName);
 
                     cardDiv.innerHTML = 
                         '<img src="' + img + '" loading="lazy" onerror="this.src=\'via.placeholder.com\'">' +
                         '<div>' +
-                            '<h3>' + nombre + '</h3>' +
-                            '<p><strong>Set:</strong> ' + set + '</p>' +
+                            '<h3>' + cardName + '</h3>' +
+                            '<p><strong>Set:</strong> ' + setName + '</p>' +
                         '</div>' +
-                        '<a href="' + linkPrecio + '" target="_blank" class="price-link">🛒 VER PRECIO</a>';
+                        '<a href="' + linkExterno + '" target="_blank" class="price-link">🛒 VER PRECIO</a>';
                     
                     grid.appendChild(cardDiv);
                 });
@@ -98,8 +98,9 @@
                 indiceActual = limite;
             }
 
+            // Scroll Infinito
             var observer = new IntersectionObserver(function(entries) {
-                if (entries.isIntersecting && indiceActual < todasLasCartas.length) {
+                if (entries[0].isIntersecting && indiceActual < todasLasCartas.length) {
                     cargarMas();
                 }
             }, { threshold: 0.1 });
@@ -112,6 +113,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 
