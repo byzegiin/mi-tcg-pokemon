@@ -2,87 +2,91 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Pokémon TCG Checker</title>
+    <title>Pokémon TCG Checker 2025</title>
     <style>
-        body { background: #0a0a0a; color: #fff; font-family: sans-serif; text-align: center; padding: 0; margin: 0; }
-        .search-container { position: sticky; top: 0; background: #111; padding: 20px; z-index: 100; border-bottom: 2px solid #ffd700; }
-        input { padding: 12px; width: 250px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; }
+        body { background: #0a0a0a; color: #fff; font-family: sans-serif; text-align: center; padding: 20px; }
+        .search-container { margin: 20px auto; max-width: 500px; display: flex; gap: 10px; }
+        input { flex: 1; padding: 12px; border-radius: 8px; background: #222; color: #fff; border: 1px solid #444; }
         button { padding: 12px 20px; background: #ffd700; border: none; font-weight: bold; cursor: pointer; border-radius: 8px; }
-        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; max-width: 1200px; margin: 20px auto; padding: 0 20px; }
-        .card { background: #1a1a1a; border: 1px solid #ffd700; border-radius: 12px; padding: 15px; text-align: left; }
-        .card img { width: 100%; border-radius: 8px; min-height: 280px; background: #000; }
-        .card h3 { color: #ffd700; margin: 10px 0 5px; }
-        .price-link { display: block; margin-top: 15px; color: #000; background: #ffd700; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 20px; }
+        .card { background: #1a1a1a; border: 1px solid #ffd700; border-radius: 12px; padding: 15px; }
+        .card img { width: 100%; border-radius: 8px; min-height: 250px; background: #000; }
+        .price-link { display: block; margin-top: 10px; color: #ffd700; text-decoration: none; border: 1px solid #ffd700; padding: 8px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
+    <h1>Pokémon TCG Live Finder</h1>
+
     <div class="search-container">
-        <h1>Pokémon TCG Finder</h1>
-        <input type="text" id="pokemonName" placeholder="Ej: Pikachu">
-        <button id="btnBuscar">BUSCAR</button>
-        <div id="status" style="color:#ffd700; margin-top:10px;"></div>
+        <input type="text" id="pokemonName" placeholder="Ejemplo: Pikachu">
+        <button id="btn">BUSCAR</button>
     </div>
 
+    <div id="status"></div>
     <div class="cards-grid" id="grid"></div>
-    <div id="sentinel" style="height: 100px;"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var todas = [];
-            var indice = 0;
-            const grid = document.getElementById('grid');
-            const status = document.getElementById('status');
+            var btn = document.getElementById('btn');
+            var input = document.getElementById('pokemonName');
+            var grid = document.getElementById('grid');
+            var status = document.getElementById('status');
 
             async function buscar() {
-                const nombre = document.getElementById('pokemonName').value.trim();
-                if (nombre.length < 2) return;
+                var nombre = input.value.trim();
+                if (nombre.length < 2) return alert('Mínimo 2 letras');
+
                 grid.innerHTML = '';
-                todas = [];
-                indice = 0;
-                status.textContent = 'Buscando...';
+                status.textContent = 'Cargando...';
 
                 try {
-                    // DIRECCION ABSOLUTA FORZADA
-                    const r = await fetch('api.tcgdex.net' + encodeURIComponent(nombre));
-                    todas = await r.json();
-                    status.textContent = 'Encontradas: ' + todas.length;
-                    cargar();
-                } catch (e) { status.textContent = 'Error de red'; }
+                    // CONSTRUCCIÓN BLINDADA DE URL
+                    var p = 'https://';
+                    var d = 'api.tcgdex.net/v2/en/cards';
+                    var q = '?name=' + encodeURIComponent(nombre);
+                    var urlFinal = p + d + q;
+                    
+                    console.log('Solicitando a:', urlFinal);
+
+                    var res = await fetch(urlFinal);
+                    if (!res.ok) throw new Error('Error en la respuesta');
+
+                    var data = await res.json();
+                    status.textContent = '';
+
+                    if (!data || data.length === 0) {
+                        status.textContent = 'No se encontraron cartas.';
+                        return;
+                    }
+
+                    data.slice(0, 20).forEach(function(card) {
+                        var cardDiv = document.createElement('div');
+                        cardDiv.className = 'card';
+                        
+                        var cardName = card.name || 'N/A';
+                        var setName = (card.set && card.set.name) ? card.set.name : 'N/A';
+                        var imgUrl = card.image ? card.image + '/low.jpg' : 'via.placeholder.com';
+
+                        cardDiv.innerHTML = 
+                            '<img src="' + imgUrl + '">' +
+                            '<h3>' + cardName + '</h3>' +
+                            '<p>Set: ' + setName + '</p>' +
+                            '<a href="www.tcgplayer.com' + encodeURIComponent(cardName) + '" target="_blank" class="price-link">VER PRECIOS</a>';
+                        
+                        grid.appendChild(cardDiv);
+                    });
+
+                } catch (err) {
+                    console.error('Error:', err);
+                    status.textContent = 'Error al conectar. Revisa tu internet.';
+                }
             }
 
-            function cargar() {
-                const grupo = todas.slice(indice, indice + 12);
-                grupo.forEach(card => {
-                    const div = document.createElement('div');
-                    div.className = 'card';
-                    const img = card.image ? card.image + '/low.jpg' : 'via.placeholder.com';
-                    
-                    // USAMOS CONCATENACIÓN SIMPLE SIN VARIABLES COMPLEJAS
-                    const busqueda = encodeURIComponent(card.name + ' ' + (card.set ? card.set.name : ''));
-                    
-                    div.innerHTML = `
-                        <img src="${img}">
-                        <h3>${card.name}</h3>
-                        <p><strong>Expansión:</strong> ${card.set ? card.set.name : 'N/A'}</p>
-                        <a href="www.tcgplayer.com{busqueda}" target="_blank" class="price-link">VER PRECIOS</a>
-                    `;
-                    grid.appendChild(div);
-                });
-                indice += 12;
-            }
-
-            const obs = new IntersectionObserver(ent => {
-                if (ent[0].isIntersecting && indice < todas.length) cargar();
-            });
-            obs.observe(document.getElementById('sentinel'));
-
-            document.getElementById('btnBuscar').addEventListener('click', buscar);
+            btn.addEventListener('click', buscar);
+            input.addEventListener('keypress', function(e) { if (e.key === 'Enter') buscar(); });
         });
     </script>
 </body>
 </html>
-
-
-
 
