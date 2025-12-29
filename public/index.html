@@ -1,1 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Pokémon TCG Checker 2025</title>
+    <style>
+        body { background: #0a0a0a; color: #fff; font-family: sans-serif; text-align: center; padding: 20px; }
+        .search-container { margin: 20px auto; max-width: 500px; display: flex; gap: 10px; }
+        input { flex: 1; padding: 12px; border-radius: 8px; background: #222; color: #fff; border: 1px solid #444; }
+        button { padding: 12px 20px; background: #ffd700; border: none; font-weight: bold; cursor: pointer; border-radius: 8px; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 20px; }
+        .card { background: #1a1a1a; border: 1px solid #ffd700; border-radius: 12px; padding: 15px; }
+        .card img { width: 100%; border-radius: 8px; min-height: 250px; background: #000; }
+        .price-link { display: block; margin-top: 10px; color: #ffd700; text-decoration: none; border: 1px solid #ffd700; padding: 8px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <h1>Pokémon TCG Live Finder</h1>
+
+    <div class="search-container">
+        <input type="text" id="pokemonName" placeholder="Ejemplo: Pikachu">
+        <button id="btn">BUSCAR</button>
+    </div>
+
+    <div id="status"></div>
+    <div class="cards-grid" id="grid"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.getElementById('btn');
+            var input = document.getElementById('pokemonName');
+            var grid = document.getElementById('grid');
+            var status = document.getElementById('status');
+
+            async function buscar() {
+                var nombre = input.value.trim();
+                if (nombre.length < 2) return alert('Mínimo 2 letras');
+
+                grid.innerHTML = '';
+                status.textContent = 'Cargando...';
+
+                try {
+                    // CONSTRUCCIÓN BLINDADA DE URL
+                    var p = 'https://';
+                    var d = 'api.tcgdex.net/v2/en/cards';
+                    var q = '?name=' + encodeURIComponent(nombre);
+                    var urlFinal = p + d + q;
+                    
+                    console.log('Solicitando a:', urlFinal);
+
+                    var res = await fetch(urlFinal);
+                    if (!res.ok) throw new Error('Error en la respuesta');
+
+                    var data = await res.json();
+                    status.textContent = '';
+
+                    if (!data || data.length === 0) {
+                        status.textContent = 'No se encontraron cartas.';
+                        return;
+                    }
+
+                    data.slice(0, 20).forEach(function(card) {
+                        var cardDiv = document.createElement('div');
+                        cardDiv.className = 'card';
+                        
+                        var cardName = card.name || 'N/A';
+                        var setName = (card.set && card.set.name) ? card.set.name : 'N/A';
+                        var imgUrl = card.image ? card.image + '/low.jpg' : 'via.placeholder.com';
+
+                        cardDiv.innerHTML = 
+                            '<img src="' + imgUrl + '">' +
+                            '<h3>' + cardName + '</h3>' +
+                            '<p>Set: ' + setName + '</p>' +
+                            '<a href="www.tcgplayer.com' + encodeURIComponent(cardName) + '" target="_blank" class="price-link">VER PRECIOS</a>';
+                        
+                        grid.appendChild(cardDiv);
+                    });
+
+                } catch (err) {
+                    console.error('Error:', err);
+                    status.textContent = 'Error al conectar. Revisa tu internet.';
+                }
+            }
+
+            btn.addEventListener('click', buscar);
+            input.addEventListener('keypress', function(e) { if (e.key === 'Enter') buscar(); });
+        });
+    </script>
+</body>
+</html>
 
