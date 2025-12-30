@@ -30,12 +30,11 @@
         h1 {
             color: var(--tibia-gold);
             text-shadow: 4px 4px #000;
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 25px;
             text-align: center;
         }
 
-        /* Buscador Estilo RPG */
         .search-container {
             margin-bottom: 30px;
             display: flex;
@@ -48,8 +47,9 @@
             color: #00ff00;
             padding: 10px;
             font-family: 'Press Start 2P', cursive;
-            font-size: 10px;
+            font-size: 8px;
             outline: none;
+            width: 180px;
         }
 
         button {
@@ -58,42 +58,34 @@
             color: white;
             cursor: pointer;
             font-family: 'Press Start 2P', cursive;
-            font-size: 10px;
+            font-size: 8px;
             padding: 10px;
         }
 
-        button:active {
-            border-style: inset;
-        }
+        button:active { border-style: inset; }
 
-        /* Grilla de Inventario Tibia-like */
         #inventory-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
             gap: 12px;
             width: 100%;
             max-width: 900px;
             background: #2a2a2a;
             border: 6px inset var(--tibia-border);
             padding: 15px;
-            image-rendering: pixelated;
         }
 
-        /* Cada Slot de Carta */
         .card-slot {
             background: var(--slot-bg);
             border: 3px outset var(--tibia-border);
             padding: 8px;
             text-align: center;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
             transition: transform 0.1s;
+            min-height: 160px;
         }
 
         .card-slot:hover {
             border-color: var(--tibia-gold);
-            transform: scale(1.05);
             background: #4a4a4a;
         }
 
@@ -101,24 +93,25 @@
             width: 100%;
             height: auto;
             border: 1px solid #000;
-            margin-bottom: 8px;
-            /* Forzar renderizado pixelado */
             image-rendering: pixelated;
             image-rendering: crisp-edges;
+            background: #111;
         }
 
         .card-name {
             font-size: 7px;
-            line-height: 1.2;
+            margin-top: 8px;
             color: #fff;
             text-transform: uppercase;
+            word-wrap: break-word;
         }
 
-        .loading-text {
+        .status-msg {
             grid-column: 1 / -1;
             text-align: center;
             color: var(--tibia-gold);
             padding: 20px;
+            font-size: 10px;
         }
     </style>
 </head>
@@ -127,75 +120,80 @@
     <h1>POKÉMON TCG CHECKLIST</h1>
 
     <div class="search-container">
-        <input type="text" id="pokemon-search" placeholder="NOMBRE...">
-        <button id="btn-search">BUSCAR</button>
+        <input type="text" id="pokemon-search" placeholder="BUSCAR...">
+        <button id="btn-search">EXECUTAR</button>
     </div>
 
     <div id="inventory-grid">
-        </div>
+        <div class="status-msg">ESPERANDO ORDEN...</div>
+    </div>
 
     <script>
-        // URL Corregida: tcgdex (con E)
         const API_BASE = 'https://api.tcgdex.net/v2/es';
 
         async function fetchCards(name = '') {
             const grid = document.getElementById('inventory-grid');
-            grid.innerHTML = '<div class="loading-text">CARGANDO ITEMS...</div>';
+            grid.innerHTML = '<div class="status-msg">CONECTANDO AL REINO...</div>';
             
             try {
-                // Endpoint según tu documentación
-                let url = `${API_BASE}/cards?limit=24`;
-                if (name) {
-                    url = `${API_BASE}/cards?name=${encodeURIComponent(name)}&limit=24`;
-                }
+                // Endpoint corregido: Si no hay nombre, pedimos cartas generales
+                // Si hay nombre, usamos el buscador de cartas
+                let url = name 
+                    ? `${API_BASE}/cards?name=${encodeURIComponent(name)}`
+                    : `${API_BASE}/cards`;
+
+                console.log("Invocando:", url);
 
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('Servidor no responde');
-                
-                const result = await response.json();
-                const cards = result.data || result;
+                const data = await response.json();
+
+                // LOGICA DE EXTRACCION: La API devuelve o un Array directo o un objeto con .data
+                let cards = Array.isArray(data) ? data : data.data;
+
+                // Limitar a 24 para no saturar
+                cards = cards.slice(0, 24);
 
                 grid.innerHTML = '';
 
                 if (!cards || cards.length === 0) {
-                    grid.innerHTML = '<div class="loading-text">NO HAY RESULTADOS.</div>';
+                    grid.innerHTML = '<div class="status-msg">EL ITEM NO EXISTE.</div>';
                     return;
                 }
 
                 cards.forEach(card => {
+                    // Solo mostrar si tiene imagen definida
                     if (card.image) {
                         const slot = document.createElement('div');
                         slot.className = 'card-slot';
                         slot.innerHTML = `
-                            <img src="${card.image}/low.jpg" alt="${card.name}" onerror="this.src='https://via.placeholder.com/100x140?text=NO+IMG'">
+                            <img src="${card.image}/low.jpg" alt="${card.name}" loading="lazy">
                             <div class="card-name">${card.name}</div>
                         `;
                         grid.appendChild(slot);
                     }
                 });
+
             } catch (error) {
-                console.error("Error API:", error);
-                grid.innerHTML = '<div class="loading-text" style="color: red;">ERROR DE CONEXIÓN AL MUNDO.</div>';
+                console.error("Error de Magia:", error);
+                grid.innerHTML = '<div class="status-msg" style="color: #ff4444;">ERROR: FALLO DE CONEXIÓN.</div>';
             }
         }
 
-        // Eventos
+        // Eventos de usuario
         document.getElementById('btn-search').onclick = () => {
-            const name = document.getElementById('pokemon-search').value;
-            fetchCards(name);
+            const query = document.getElementById('pokemon-search').value;
+            fetchCards(query);
         };
 
-        // Escuchar tecla Enter
-        document.getElementById('pokemon-search').onkeypress = (e) => {
-            if (e.key === 'Enter') {
-                fetchCards(e.target.value);
-            }
-        };
+        document.getElementById('pokemon-search').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchCards(e.target.value);
+        });
 
-        // Carga inicial
-        fetchCards();
+        // Carga inicial automática
+        window.onload = () => fetchCards();
     </script>
 </body>
 </html>
+
 
 
