@@ -4,200 +4,139 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <title>Poké-TCG Pixel Quest</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <title>Pokémon TCG Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root {
-            --bg-dungeon: #1a1a1a;
-            --slot-bg: #3e3e3e;
-            --tibia-border: #555;
-            --tibia-gold: #ffd700;
-        }
-
-        body {
-            background-color: var(--bg-dungeon);
-            color: #e0e0e0;
-            font-family: 'Press Start 2P', cursive;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            image-rendering: pixelated;
-        }
-
-        h1 {
-            color: var(--tibia-gold);
-            text-shadow: 3px 3px #000;
-            font-size: 14px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .search-container {
-            margin-bottom: 25px;
-            display: flex;
-            gap: 5px;
-        }
-
-        input {
-            background: #000;
-            border: 3px double var(--tibia-border);
-            color: #00ff00;
-            padding: 10px;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 9px;
-            outline: none;
-            width: 180px;
-        }
-
-        button {
-            background: #4a4a4a;
-            border: 3px outset var(--tibia-border);
-            color: white;
-            cursor: pointer;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 9px;
-            padding: 10px;
-        }
-
-        #inventory-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 10px;
-            width: 100%;
-            max-width: 850px;
-            background: #2a2a2a;
-            border: 5px inset var(--tibia-border);
-            padding: 15px;
-            min-height: 200px;
-        }
-
-        .card-slot {
-            background: var(--slot-bg);
-            border: 3px outset var(--tibia-border);
-            padding: 10px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .card-slot img {
-            width: 100%;
-            height: auto;
-            border: 1px solid #000;
-            margin-bottom: 10px;
-            image-rendering: pixelated;
-            background: #111;
-        }
-
-        .card-name {
-            font-size: 7px;
-            color: #fff;
-            text-transform: uppercase;
-        }
-
-        .msg {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 40px;
-            color: var(--tibia-gold);
-            font-size: 10px;
-        }
+        body { background-color: #f8f9fa; padding-top: 20px; }
+        .card-container { transition: transform 0.2s; cursor: pointer; height: 100%; }
+        .card-container:hover { transform: scale(1.03); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .card-img-top { border-radius: 8px; background: #eee; min-height: 200px; }
+        .badge-type { font-size: 0.7rem; margin-right: 5px; }
+        #loading-spinner { display: none; }
+        .modal-body img { max-width: 100%; border-radius: 10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
-    <h1>POKÉMON TCG CHECKLIST</h1>
-
-    <div class="search-container">
-        <input type="text" id="pokemon-search" placeholder="BUSCAR...">
-        <button id="id-btn-fetch">EXECUTAR</button>
+<div class="container">
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-8 text-center">
+            <h1 class="mb-4">Pokémon TCG Checklist</h1>
+            <div class="input-group">
+                <input type="text" id="search-input" class="form-control" placeholder="Ej: Pikachu, Charizard, Mew...">
+                <button class="btn btn-primary" id="search-btn">Buscar Carta</button>
+            </div>
+            <div id="loading-spinner" class="mt-3">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        </div>
     </div>
 
-    <div id="inventory-grid">
-        <div class="msg" id="status-text">ESPERANDO ORDEN...</div>
+    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3" id="results-grid">
+        </div>
+</div>
+
+<div class="modal fade" id="cardModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Detalles de la Carta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center" id="modalBody">
+                </div>
+            <div class="modal-footer">
+                <a href="#" id="price-btn" target="_blank" class="btn btn-success w-100">Ver precio en Cardmarket</a>
+            </div>
+        </div>
     </div>
+</div>
 
-    <script>
-        // Cambiamos a la URL base que siempre responde
-        const API_URL = 'https://api.tcgdex.net/v2/es';
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const API_URL = 'https://api.tcgdex.net/v2/es';
+    const grid = document.getElementById('results-grid');
+    const spinner = document.getElementById('loading-spinner');
+    const modal = new bootstrap.Modal(document.getElementById('cardModal'));
 
-        async function loadCards(query = '') {
-            const grid = document.getElementById('inventory-grid');
-            const status = document.getElementById('status-text');
-            grid.innerHTML = '<div class="msg">REVISANDO EL INVENTARIO...</div>';
+    async function fetchCards(name = '') {
+        grid.innerHTML = '';
+        spinner.style.display = 'block';
+        
+        try {
+            // Si no hay búsqueda, mostramos un set reciente para que no esté vacío
+            const endpoint = name ? `/cards?name=${encodeURIComponent(name)}` : '/sets/sv01';
+            const response = await fetch(API_URL + endpoint);
+            const data = await response.json();
             
-            try {
-                let url = '';
-                
-                // Si buscas algo, usamos el endpoint de cartas
-                if (query) {
-                    url = `${API_URL}/cards?name=${encodeURIComponent(query)}`;
-                } else {
-                    // Si está vacío, cargamos un SET específico (Scarlet & Violet Base) para asegurar resultados
-                    url = `${API_URL}/sets/sv1`; 
-                }
+            // La API devuelve .cards en sets o array directo en búsqueda
+            const cards = data.cards || data.data || data;
 
-                console.log("Invocando hechizo a:", url);
-                const response = await fetch(url);
-                const data = await response.json();
+            spinner.style.display = 'none';
 
-                // La API de TCGdex guarda las cartas en 'cards' si es un set,
-                // o devuelve un array si es una búsqueda.
-                let cards = data.cards || data;
-
-                // Si por alguna razón es un objeto con .data (como en algunas versiones de la API)
-                if (data.data) cards = data.data;
-
-                grid.innerHTML = '';
-
-                if (!cards || !Array.isArray(cards) || cards.length === 0) {
-                    grid.innerHTML = '<div class="msg">EL COFRE ESTÁ VACÍO (0 RESULTADOS).</div>';
-                    return;
-                }
-
-                // Tomamos 30 cartas máximo
-                const limit = cards.slice(0, 30);
-
-                limit.forEach(card => {
-                    // Verificamos si tiene imagen o construimos la URL si falta
-                    const imagePath = card.image ? `${card.image}/low.jpg` : null;
-
-                    if (imagePath) {
-                        const slot = document.createElement('div');
-                        slot.className = 'card-slot';
-                        slot.innerHTML = `
-                            <img src="${imagePath}" alt="${card.name}" onerror="this.parentElement.style.display='none'">
-                            <div class="card-name">${card.name}</div>
-                        `;
-                        grid.appendChild(slot);
-                    }
-                });
-
-                if (grid.innerHTML === '') {
-                    grid.innerHTML = '<div class="msg">CARTAS ENCONTRADAS PERO SIN IMÁGENES DISPONIBLES.</div>';
-                }
-
-            } catch (err) {
-                console.error("Fallo crítico:", err);
-                grid.innerHTML = `<div class="msg" style="color:red">ERROR DE CONEXIÓN: ${err.message}</div>`;
+            if (!cards || cards.length === 0) {
+                grid.innerHTML = '<p class="text-center w-100">No se encontraron resultados.</p>';
+                return;
             }
+
+            cards.slice(0, 48).forEach(card => {
+                if (card.image) {
+                    const col = document.createElement('div');
+                    col.className = 'col';
+                    col.innerHTML = `
+                        <div class="card card-container shadow-sm" onclick="showCardDetails('${card.id}')">
+                            <img src="${card.image}/low.jpg" class="card-img-top" alt="${card.name}">
+                            <div class="card-body p-2 text-center">
+                                <small class="fw-bold">${card.name}</small>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(col);
+                }
+            });
+        } catch (error) {
+            spinner.style.display = 'none';
+            grid.innerHTML = '<p class="text-danger text-center w-100">Error al conectar con la API.</p>';
         }
+    }
 
-        document.getElementById('id-btn-fetch').onclick = () => {
-            loadCards(document.getElementById('pokemon-search').value);
-        };
+    async function showCardDetails(id) {
+        document.getElementById('modalBody').innerHTML = '<div class="spinner-border" role="status"></div>';
+        modal.show();
 
-        // Escuchar Enter
-        document.getElementById('pokemon-search').onkeypress = (e) => {
-            if (e.key === 'Enter') loadCards(e.target.value);
-        };
+        try {
+            const res = await fetch(`${API_URL}/cards/${id}`);
+            const card = await res.json();
 
-        // CARGA INICIAL
-        window.onload = () => loadCards();
-    </script>
+            document.getElementById('modalTitle').innerText = card.name;
+            let infoHtml = `
+                <img src="${card.image}/high.jpg" class="img-fluid">
+                <div class="text-start p-2">
+                    <p><strong>Rareza:</strong> ${card.rarity || 'Desconocida'}</p>
+                    <p><strong>Serie:</strong> ${card.set.name}</p>
+                    <p><strong>Tipo:</strong> ${card.types ? card.types.join(', ') : 'N/A'}</p>
+                    <p><strong>Descripción:</strong> ${card.description || 'Sin descripción disponible.'}</p>
+                </div>
+            `;
+            document.getElementById('modalBody').innerHTML = infoHtml;
+            document.getElementById('price-btn').href = `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${encodeURIComponent(card.name)}`;
+        } catch (err) {
+            document.getElementById('modalBody').innerHTML = 'Error al cargar detalles.';
+        }
+    }
+
+    document.getElementById('search-btn').onclick = () => {
+        fetchCards(document.getElementById('search-input').value);
+    };
+
+    document.getElementById('search-input').onkeypress = (e) => {
+        if (e.key === 'Enter') fetchCards(e.target.value);
+    };
+
+    // Carga inicial
+    window.onload = () => fetchCards();
+</script>
+
 </body>
 </html>
 
