@@ -90,30 +90,50 @@
 </div>
 
 <script type="module">
-    // Usando fetch directamente para evitar problemas de dependencias en Render
-    const API_URL = 'https://api.tcgdx.net/v2/es';
+    // URL base correcta (asegúrate de incluir https://)
+    const API_URL = 'https://api.tcgdex.net/v2/es';
 
     async function fetchCards(name = '') {
         const grid = document.getElementById('inventory-grid');
-        grid.innerHTML = '<p>CARGANDO...</p>';
+        grid.innerHTML = '<p>BUSCANDO EN LA BASE DE DATOS...</p>';
         
         try {
-            const query = name ? `/cards?name=${name}&limit=20` : '/cards?limit=20';
-            const response = await fetch(API_URL + query);
+            // Si hay nombre, usamos el endpoint de búsqueda. Si no, el de cartas general.
+            let endpoint = '/cards?limit=20';
+            if (name) {
+                // Filtramos por nombre y categoría Pokémon como pedía tu documentación
+                endpoint = `/cards?name=${encodeURIComponent(name)}&category=Pokemon&limit=20`;
+            }
+
+            const response = await fetch(API_URL + endpoint);
+            
+            if (!response.ok) throw new Error('Error en la respuesta');
+
             const result = await response.json();
             
-            grid.innerHTML = ''; // Limpiar
-            result.data.forEach(card => {
+            grid.innerHTML = ''; 
+
+            if (result.length === 0 || (result.data && result.data.length === 0)) {
+                grid.innerHTML = '<p>NO SE ENCONTRARON CARTAS.</p>';
+                return;
+            }
+
+            // La API a veces devuelve un array directo o un objeto con propiedad .data
+            const cards = Array.isArray(result) ? result : result.data;
+
+            cards.forEach(card => {
                 const slot = document.createElement('div');
                 slot.className = 'card-slot';
+                // Usamos la URL de imagen pequeña para que cargue rápido estilo pixel art
                 slot.innerHTML = `
-                    <img src="${card.image}/low.webp" alt="${card.name}">
-                    <div>${card.name.toUpperCase()}</div>
+                    <img src="${card.image}/low.jpg" alt="${card.name}" onerror="this.src='https://via.placeholder.com/100x140?text=No+Img'">
+                    <div style="font-size: 10px; margin-top: 5px;">${card.name}</div>
                 `;
                 grid.appendChild(slot);
             });
         } catch (error) {
-            grid.innerHTML = '<p>ERROR AL CARGAR</p>';
+            console.error("Error detallado:", error);
+            grid.innerHTML = '<p>ERROR: VERIFICA LA CONEXIÓN.</p>';
         }
     }
 
@@ -122,10 +142,11 @@
         fetchCards(name);
     };
 
-    // Carga inicial
+    // Carga inicial al abrir la página
     fetchCards();
 </script>
 </body>
 </html>
+
 
 
