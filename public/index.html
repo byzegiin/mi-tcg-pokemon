@@ -3,112 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:,"> <!-- Esto quita el error del favicon.ico -->
-    <title>Pokémon TCG Live DB - 2025</title>
+    <link rel="icon" href="data:,"> <!-- Elimina error de favicon -->
+    <title>Pokémon TCG Checker 2025</title>
     <style>
-        :root { --gold: #ffd700; --dark: #0a0a0a; --card-bg: #1a1a1a; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--dark); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 0; }
-        .search-container { position: sticky; top: 0; width: 100%; background: #111; padding: 20px 0; z-index: 100; border-bottom: 2px solid var(--gold); display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 95%; }
-        input, select { padding: 12px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; outline: none; }
-        button { padding: 12px 25px; border-radius: 8px; border: none; background: var(--gold); color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #fff; transform: scale(1.05); }
-        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; width: 95%; max-width: 1200px; padding: 20px 0; }
-        .card { background: var(--card-bg); border: 1px solid #333; border-radius: 15px; padding: 15px; text-align: left; display: flex; flex-direction: column; height: 100%; }
-        .card img { width: 100%; border-radius: 10px; min-height: 280px; background: #000; margin-bottom: 12px; }
-        .card h3 { margin: 0 0 8px; color: var(--gold); font-size: 1.1em; }
-        .card p { font-size: 0.9em; margin: 4px 0; color: #ccc; }
-        .price-link { display: block; margin-top: auto; padding: 12px; background: var(--gold); color: #000; text-decoration: none; border-radius: 6px; font-weight: bold; text-align: center; }
-        #status-msg { color: var(--gold); font-weight: bold; height: 20px; margin-top: 10px; }
+        body { background: #0a0a0a; color: #fff; font-family: sans-serif; text-align: center; padding: 0; margin: 0; }
+        .header { position: sticky; top: 0; background: #111; padding: 20px; z-index: 100; border-bottom: 2px solid #ffd700; }
+        input, select { padding: 12px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; margin: 5px; }
+        button { padding: 12px 20px; background: #ffd700; border: none; font-weight: bold; cursor: pointer; border-radius: 8px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .card { background: #1a1a1a; border: 1px solid #333; border-radius: 15px; padding: 15px; text-align: left; transition: 0.3s; }
+        .card:hover { border-color: #ffd700; transform: translateY(-5px); }
+        .card img { width: 100%; border-radius: 10px; margin-bottom: 10px; min-height: 280px; background: #000; }
+        .card h3 { color: #ffd700; margin: 0; font-size: 1.1em; }
+        .card p { font-size: 0.85em; color: #ccc; margin: 5px 0; }
+        .btn-price { display: block; margin-top: 10px; background: #ffd700; color: #000; text-decoration: none; padding: 10px; border-radius: 5px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="search-container">
+    <div class="header">
         <h1>Pokémon TCG Finder</h1>
-        <div class="controls">
-            <input type="text" id="pokemonName" placeholder="Ej: Lugia, Mew...">
-            <select id="categoryFilter">
-                <option value="">Categorías</option>
-                <option value="Pokemon">Pokémon</option>
-                <option value="Trainer">Entrenador</option>
-                <option value="Energy">Energía</option>
-            </select>
-            <button id="btnBuscar">BUSCAR</button>
-        </div>
-        <div id="status-msg">Cargando sistema...</div>
+        <input type="text" id="name" placeholder="Ej: Pikachu">
+        <select id="category">
+            <option value="">Categorías</option>
+            <option value="Pokemon">Pokémon</option>
+            <option value="Trainer">Entrenador</option>
+            <option value="Energy">Energía</option>
+        </select>
+        <button onclick="buscar()">BUSCAR</button>
+        <div id="status" style="margin-top: 10px; color: #ffd700;"></div>
     </div>
 
-    <div class="cards-grid" id="grid"></div>
-    <div id="sentinel" style="height: 100px; width: 100%;"></div>
+    <div class="grid" id="grid"></div>
+    <div id="loading" style="height: 100px;"></div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var todas = [];
-            var indice = 0;
+        let cartas = [];
+        let index = 0;
+
+        async function buscar() {
+            const n = document.getElementById('name').value.trim();
+            const c = document.getElementById('category').value;
             const grid = document.getElementById('grid');
-            const status = document.getElementById('status-msg');
+            const status = document.getElementById('status');
+            
+            if (n.length < 2) return;
+            
+            grid.innerHTML = "";
+            status.textContent = "Buscando...";
+            cartas = [];
+            index = 0;
 
-            async function buscar() {
-                const nombre = document.getElementById('pokemonName').value.trim();
-                const categoria = document.getElementById('categoryFilter').value;
+            try {
+                // URL ABSOLUTA PARA EVITAR EL 404
+                let url = `api.tcgdex.net{encodeURIComponent(n)}`;
+                if (c) url += `&category=${c}`;
 
-                grid.innerHTML = '';
-                todas = [];
-                indice = 0;
-                status.textContent = 'Buscando en la base de datos...';
-
-                try {
-                    // USO DE URL ABSOLUTA PARA EVITAR EL ERROR 404 DE LOCALHOST/RENDER
-                    const url = new URL("api.tcgdex.net");
-                    if (nombre) url.searchParams.append("name", nombre);
-                    if (categoria) url.searchParams.append("category", categoria);
-
-                    const res = await fetch(url.href);
-                    if (!res.ok) throw new Error();
-                    
-                    todas = await res.json();
-                    status.textContent = "Resultados: " + todas.length;
-                    cargarMas();
-                } catch (err) {
-                    status.textContent = "Error de conexión con la API.";
+                const res = await fetch(url);
+                cartas = await res.json();
+                
+                if (!cartas || cartas.length === 0) {
+                    status.textContent = "No hay resultados.";
+                    return;
                 }
+                
+                status.textContent = `Encontradas: ${cartas.length}`;
+                render();
+            } catch (e) {
+                status.textContent = "Error de conexión.";
             }
+        }
 
-            function cargarMas() {
-                const grupo = todas.slice(indice, indice + 12);
-                grupo.forEach(card => {
-                    const div = document.createElement('div');
-                    div.className = 'card';
-                    const sName = (card.set && card.set.name) ? card.set.name : 'N/A';
-                    const img = card.image ? (card.image + "/low.jpg") : "via.placeholder.com";
-                    
-                    // Link absoluto con protocolo HTTPS
-                    const tcgUrl = "www.tcgplayer.com" + encodeURIComponent(card.name + " " + sName);
+        function render() {
+            const container = document.getElementById('grid');
+            const chunk = cartas.slice(index, index + 12);
+            
+            chunk.forEach(card => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                const img = card.image ? `${card.image}/low.jpg` : "via.placeholder.com";
+                const expansion = card.set ? card.set.name : "Desconocida";
+                
+                // URL de TCGPlayer corregida con protocolo https://
+                const priceUrl = `www.tcgplayer.com{encodeURIComponent(card.name + " " + expansion)}`;
 
-                    div.innerHTML = `
-                        <img src="${img}" loading="lazy">
-                        <h3>${card.name}</h3>
-                        <p><strong>Expansión:</strong> ${sName}</p>
-                        <a href="${tcgUrl}" target="_blank" class="price-link">🛒 VER PRECIOS</a>
-                    `;
-                    grid.appendChild(div);
-                });
-                indice += 12;
-            }
+                div.innerHTML = `
+                    <img src="${img}" loading="lazy">
+                    <h3>${card.name}</h3>
+                    <p><strong>Expansión:</strong> ${expansion}</p>
+                    <a href="${priceUrl}" target="_blank" class="btn-price">🛒 VER PRECIOS</a>
+                `;
+                container.appendChild(div);
+            });
+            index += 12;
+        }
 
-            const obs = new IntersectionObserver(ent => {
-                if (ent.isIntersecting && indice < todas.length) cargarMas();
-            }, { threshold: 0.1 });
-            obs.observe(document.getElementById('sentinel'));
-
-            document.getElementById('btnBuscar').addEventListener('click', buscar);
-            document.getElementById('pokemonName').addEventListener('keypress', (e) => { if(e.key === 'Enter') buscar(); });
-            status.textContent = "Listo.";
+        // Scroll Infinito
+        const observer = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && index < cartas.length) render();
         });
+        observer.observe(document.getElementById('loading'));
     </script>
 </body>
 </html>
+
+
 
 
 
