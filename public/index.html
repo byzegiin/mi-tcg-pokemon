@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon TCG Checklist 2025</title>
+    <title>Pokémon TCG Live DB</title>
     <style>
         :root { --gold: #ffd700; --dark: #0a0a0a; --card-bg: #1a1a1a; }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--dark); color: #fff; display: flex; flex-direction: column; align-items: center; }
@@ -12,10 +12,9 @@
         input, select { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; outline: none; }
         button { padding: 10px 20px; border-radius: 5px; border: none; background: var(--gold); color: #000; font-weight: bold; cursor: pointer; }
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; width: 95%; max-width: 1200px; padding: 20px 0; }
-        .card { background: var(--card-bg); border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: left; display: flex; flex-direction: column; height: 100%; }
+        .card { background: var(--card-bg); border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: left; transition: 0.3s; display: flex; flex-direction: column; height: 100%; }
         .card img { width: 100%; border-radius: 8px; min-height: 250px; background: #000; margin-bottom: 10px; }
         .card h3 { margin: 0; color: var(--gold); font-size: 1em; }
-        .card p { font-size: 0.8em; margin: 3px 0; color: #ccc; }
         .price-link { display: block; margin-top: auto; padding: 10px; background: var(--gold); color: #000; text-decoration: none; border-radius: 4px; font-weight: bold; text-align: center; font-size: 0.85em; }
         #status-msg { color: var(--gold); font-weight: bold; font-size: 0.9em; height: 20px; }
     </style>
@@ -25,19 +24,16 @@
     <div class="search-container">
         <h1>Pokémon TCG Live DB</h1>
         <div class="controls">
-            <input type="text" id="pokemonName" placeholder="Nombre (Mew, Lugia...)">
+            <input type="text" id="pokemonName" placeholder="Nombre (Pikachu...)">
             <select id="categoryFilter">
                 <option value="">Categorías</option>
                 <option value="Pokemon">Pokémon</option>
                 <option value="Trainer">Entrenador</option>
                 <option value="Energy">Energía</option>
             </select>
-            <select id="serieFilter">
-                <option value="">Todas las Eras</option>
-            </select>
             <button id="btnBuscar">BUSCAR</button>
         </div>
-        <div id="status-msg">Iniciando sistema...</div>
+        <div id="status-msg">Cargando base de datos...</div>
     </div>
 
     <div class="cards-grid" id="grid"></div>
@@ -47,99 +43,64 @@
         document.addEventListener('DOMContentLoaded', function() {
             var todasLasCartas = [];
             var indiceActual = 0;
-            var cantidadPorCarga = 12;
-
             const grid = document.getElementById('grid');
             const status = document.getElementById('status-msg');
-            const serieSelect = document.getElementById('serieFilter');
-            const sentinel = document.getElementById('sentinel');
 
-            // 1. CARGAR SERIES (CON PREFIJO FORZADO)
-            async function cargarSeries() {
-                try {
-                    var protocolo = "https://";
-                    var server = "api.tcgdex.net/v2/es/series";
-                    var res = await fetch(protocolo + server);
-                    var series = await res.json();
-                    series.forEach(s => {
-                        let opt = document.createElement('option');
-                        opt.value = s.id;
-                        opt.textContent = s.name;
-                        serieSelect.appendChild(opt);
-                    });
-                    status.textContent = "Base de datos lista.";
-                } catch (e) {
-                    status.textContent = "Error de conexión con la API.";
-                }
-            }
-            cargarSeries();
-
-            // 2. FUNCIÓN DE BÚSQUEDA
+            // USAMOS OBJETO URL PARA FORZAR AL NAVEGADOR A SALIR DE RENDER
             async function buscar() {
                 const nombre = document.getElementById('pokemonName').value.trim();
                 const categoria = document.getElementById('categoryFilter').value;
-                const serie = document.getElementById('serieFilter').value;
 
                 grid.innerHTML = '';
                 todasLasCartas = [];
                 indiceActual = 0;
-                status.textContent = 'Buscando en la nube...';
+                status.textContent = 'Buscando en internet...';
 
                 try {
-                    // CONSTRUCCIÓN SEGURA DE URL
-                    var p = "https://";
-                    var d = "api.tcgdex.net/v2/es/cards?";
-                    var q = "";
-                    if (nombre) q += "name=" + encodeURIComponent(nombre) + "&";
-                    if (categoria) q += "category=" + categoria + "&";
-                    if (serie) q += "serie=" + serie;
+                    // SE ESCRIBE LA URL COMPLETA CON HTTPS PARA EVITAR EL 404
+                    let endpoint = new URL("api.tcgdex.net");
+                    if (nombre) endpoint.searchParams.append("name", nombre);
+                    if (categoria) endpoint.searchParams.append("category", categoria);
 
-                    const res = await fetch(p + d + q);
+                    const res = await fetch(endpoint.href);
+                    if (!res.ok) throw new Error();
+                    
                     todasLasCartas = await res.json();
-
-                    if (!todasLasCartas || todasLasCartas.length === 0) {
-                        status.textContent = 'No se encontraron resultados.';
-                        return;
-                    }
-
-                    status.textContent = 'Encontradas: ' + todasLasCartas.length;
+                    status.textContent = "Encontradas: " + todasLasCartas.length;
                     cargarMas();
                 } catch (err) {
-                    status.textContent = 'Error: No se pudo conectar con el servidor externo.';
+                    status.textContent = "Error: No se pudo conectar con la API.";
                 }
             }
 
             function cargarMas() {
-                const grupo = todasLasCartas.slice(indiceActual, indiceActual + cantidadPorCarga);
+                const grupo = todasLasCartas.slice(indiceActual, indiceActual + 12);
                 grupo.forEach(card => {
                     const cardDiv = document.createElement('div');
                     cardDiv.className = 'card';
                     const cName = card.name || 'N/A';
                     const sName = (card.set && card.set.name) ? card.set.name : 'N/A';
-                    const img = card.image ? (card.image + "/low.jpg") : "via.placeholder.com";
+                    const img = card.image ? card.image + "/low.jpg" : "via.placeholder.com";
                     
-                    const tcgUrl = "www.tcgplayer.com" + encodeURIComponent(cName + " " + sName);
-
-                    cardDiv.innerHTML = 
-                        '<img src="' + img + '" loading="lazy" onerror="this.src=\'via.placeholder.com\'">' +
-                        '<div>' +
-                            '<h3>' + cName + '</h3>' +
-                            '<p><strong>Set:</strong> ' + sName + '</p>' +
-                        '</div>' +
-                        '<a href="' + tcgUrl + '" target="_blank" class="price-link">🛒 VER PRECIO</a>';
-                    
+                    cardDiv.innerHTML = `
+                        <img src="${img}" loading="lazy">
+                        <h3>${cName}</h3>
+                        <p><strong>Set:</strong> ${sName}</p>
+                        <a href="www.tcgplayer.com{encodeURIComponent(cName + ' ' + sName)}" 
+                           target="_blank" class="price-link">🛒 VER PRECIO</a>
+                    `;
                     grid.appendChild(cardDiv);
                 });
-                indiceActual += cantidadPorCarga;
+                indiceActual += 12;
             }
 
             const observer = new IntersectionObserver(ent => {
                 if (ent.isIntersecting && indiceActual < todasLasCartas.length) cargarMas();
             }, { threshold: 0.1 });
-            observer.observe(sentinel);
+            observer.observe(document.getElementById('sentinel'));
 
             document.getElementById('btnBuscar').addEventListener('click', buscar);
-            document.getElementById('pokemonName').addEventListener('keypress', (e) => { if(e.key === 'Enter') buscar(); });
+            document.getElementById('status-msg').textContent = "Listo.";
         });
     </script>
 </body>
