@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon TCG Live DB - 2025</title>
+    <title>Pokémon TCG Live DB</title>
     <style>
         :root { --gold: #ffd700; --dark: #0a0a0a; --card-bg: #1a1a1a; }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--dark); color: #fff; display: flex; flex-direction: column; align-items: center; }
@@ -16,14 +16,13 @@
         .card img { width: 100%; border-radius: 8px; min-height: 250px; background: #000; margin-bottom: 10px; }
         .card h3 { margin: 0; color: var(--gold); font-size: 1em; }
         .card p { font-size: 0.8em; margin: 3px 0; color: #ccc; }
-        .price-link { display: block; margin-top: auto; padding: 10px; background: var(--gold); color: #000; text-decoration: none; border-radius: 4px; font-weight: bold; text-align: center; font-size: 0.85em; }
         #status-msg { color: var(--gold); font-weight: bold; font-size: 0.9em; height: 20px; }
     </style>
 </head>
 <body>
 
     <div class="search-container">
-        <h1>Pokémon TCG Live DB</h1>
+        <h1>Pokémon TCG Finder</h1>
         <div class="controls">
             <input type="text" id="pokemonName" placeholder="Nombre (Pikachu...)">
             <select id="categoryFilter">
@@ -37,7 +36,7 @@
             </select>
             <button id="btnBuscar">BUSCAR</button>
         </div>
-        <div id="status-msg">Cargando series...</div>
+        <div id="status-msg">Iniciando...</div>
     </div>
 
     <div class="cards-grid" id="grid"></div>
@@ -54,9 +53,11 @@
             const serieSelect = document.getElementById('serieFilter');
             const sentinel = document.getElementById('sentinel');
 
-            // CARGAR SERIES (ESPAÑOL)
+            const API_BASE = "api.tcgdex.net";
+
+            // CARGAR SERIES
             try {
-                const resSeries = await fetch('api.tcgdex.net');
+                const resSeries = await fetch(API_BASE + "/series");
                 const seriesData = await resSeries.json();
                 seriesData.forEach(s => {
                     let opt = document.createElement('option');
@@ -64,7 +65,7 @@
                     opt.textContent = s.name;
                     serieSelect.appendChild(opt);
                 });
-                status.textContent = "Base de datos lista.";
+                status.textContent = "Listo.";
             } catch (e) { status.textContent = "Error de conexión."; }
 
             async function buscar() {
@@ -78,22 +79,20 @@
                 status.textContent = 'Buscando...';
 
                 try {
-                    var urlApi = 'api.tcgdex.net?';
-                    if (nombre) urlApi += 'name=' + encodeURIComponent(nombre) + '&';
-                    if (categoria) urlApi += 'category=' + categoria + '&';
-                    if (serie) urlApi += 'serie=' + serie;
+                    var url = API_BASE + "/cards?";
+                    if (nombre) url += "name=" + encodeURIComponent(nombre) + "&";
+                    if (categoria) url += "category=" + categoria + "&";
+                    if (serie) url += "serie=" + serie;
 
-                    const res = await fetch(urlApi);
+                    console.log("Solicitando a:", url);
+
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error();
                     todasLasCartas = await res.json();
 
-                    if (!todasLasCartas || todasLasCartas.length === 0) {
-                        status.textContent = 'Sin resultados.';
-                        return;
-                    }
-
-                    status.textContent = 'Encontradas: ' + todasLasCartas.length;
+                    status.textContent = "Encontradas: " + todasLasCartas.length;
                     cargarMas();
-                } catch (err) { status.textContent = 'Error al buscar.'; }
+                } catch (err) { status.textContent = "Sin resultados."; }
             }
 
             function cargarMas() {
@@ -101,32 +100,23 @@
                 grupo.forEach(card => {
                     const cardDiv = document.createElement('div');
                     cardDiv.className = 'card';
-                    
+
                     const cardName = card.name || 'N/A';
                     const setName = (card.set && card.set.name) ? card.set.name : 'N/A';
                     const imgUrl = card.image ? card.image + '/low.jpg' : 'via.placeholder.com';
-                    
-                    // CORRECCIÓN DEFINITIVA DE ENLACE EXTERNO
-                    var protocolo = "https://";
-                    var dominioPrecio = "www.tcgplayer.com";
-                    var busquedaPrecio = encodeURIComponent(cardName + " " + setName);
-                    var urlFinalPrecio = protocolo + dominioPrecio + busquedaPrecio;
 
-                    cardDiv.innerHTML = 
-                        '<img src="' + imgUrl + '" loading="lazy" onerror="this.src=\'via.placeholder.com\'">' +
-                        '<h3>' + cardName + '</h3>' +
-                        '<p><strong>Set:</strong> ' + setName + '</p>' +
-                        '<a href="' + urlFinalPrecio + '" target="_blank" class="price-link">🛒 VER PRECIO</a>';
-                    
+                    cardDiv.innerHTML = `
+                        <img src="${imgUrl}" loading="lazy" onerror="this.src='via.placeholder.com'">
+                        <h3>${cardName}</h3>
+                        <p><strong>Set:</strong> ${setName}</p>
+                    `;
                     grid.appendChild(cardDiv);
                 });
                 indiceActual += cantidadPorCarga;
             }
 
             const observer = new IntersectionObserver(entries => {
-                if (entries[0].isIntersecting && indiceActual < todasLasCartas.length) {
-                    cargarMas();
-                }
+                if (entries.isIntersecting && indiceActual < todasLasCartas.length) cargarMas();
             }, { threshold: 0.1 });
             observer.observe(sentinel);
 
@@ -136,6 +126,7 @@
     </script>
 </body>
 </html>
+
 
 
 
