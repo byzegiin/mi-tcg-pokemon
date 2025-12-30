@@ -3,26 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon TCG Live Database - 2025</title>
+    <title>Pokémon TCG Live DB - 2025</title>
     <style>
         :root { --gold: #ffd700; --dark: #0a0a0a; --card-bg: #1a1a1a; }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--dark); color: #fff; display: flex; flex-direction: column; align-items: center; }
-        
         .search-container { position: sticky; top: 0; width: 100%; background: #111; padding: 15px 0; z-index: 100; border-bottom: 2px solid var(--gold); display: flex; flex-direction: column; align-items: center; gap: 10px; }
         .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 90%; }
-        
         input, select { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; outline: none; }
         button { padding: 10px 20px; border-radius: 5px; border: none; background: var(--gold); color: #000; font-weight: bold; cursor: pointer; }
-        
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; width: 95%; max-width: 1200px; padding: 20px 0; }
-        .card { background: var(--card-bg); border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: left; transition: 0.3s; display: flex; flex-direction: column; }
+        .card { background: var(--card-bg); border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: left; transition: 0.3s; display: flex; flex-direction: column; height: 100%; }
         .card img { width: 100%; border-radius: 8px; min-height: 250px; background: #000; margin-bottom: 10px; }
         .card h3 { margin: 0; color: var(--gold); font-size: 1em; }
         .card p { font-size: 0.8em; margin: 3px 0; color: #ccc; }
-        
-        .badge { background: #333; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; border: 1px solid var(--gold); }
-        .price-link { display: block; margin-top: auto; padding: 8px; background: var(--gold); color: #000; text-decoration: none; border-radius: 4px; font-weight: bold; text-align: center; font-size: 0.85em; }
-        #status-msg { color: var(--gold); font-weight: bold; font-size: 0.9em; }
+        .price-link { display: block; margin-top: auto; padding: 10px; background: var(--gold); color: #000; text-decoration: none; border-radius: 4px; font-weight: bold; text-align: center; font-size: 0.85em; }
+        #status-msg { color: var(--gold); font-weight: bold; font-size: 0.9em; height: 20px; }
     </style>
 </head>
 <body>
@@ -30,20 +25,16 @@
     <div class="search-container">
         <h1>Pokémon TCG Live DB</h1>
         <div class="controls">
-            <input type="text" id="pokemonName" placeholder="Nombre (Mew, Lugia...)">
-            
+            <input type="text" id="pokemonName" placeholder="Nombre (Pikachu...)">
             <select id="categoryFilter">
-                <option value="">Todas las Categorías</option>
+                <option value="">Categorías</option>
                 <option value="Pokemon">Pokémon</option>
                 <option value="Trainer">Entrenador</option>
                 <option value="Energy">Energía</option>
             </select>
-
             <select id="serieFilter">
                 <option value="">Todas las Eras</option>
-                <!-- Se llena automáticamente con la API -->
             </select>
-
             <button id="btnBuscar">BUSCAR</button>
         </div>
         <div id="status-msg">Cargando series...</div>
@@ -54,29 +45,28 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
-            let todasLasCartas = [];
-            let indiceActual = 0;
-            const cantidadPorCarga = 12;
+            var todasLasCartas = [];
+            var indiceActual = 0;
+            var cantidadPorCarga = 12;
 
             const grid = document.getElementById('grid');
             const status = document.getElementById('status-msg');
             const serieSelect = document.getElementById('serieFilter');
             const sentinel = document.getElementById('sentinel');
 
-            // 1. CARGAR SERIES AL INICIAR (Basado en tu documentación)
+            // CARGAR SERIES (ESPAÑOL)
             try {
-                const res = await fetch('api.tcgdex.net');
-                const series = await res.json();
-                series.forEach(s => {
+                const resSeries = await fetch('api.tcgdex.net');
+                const seriesData = await resSeries.json();
+                seriesData.forEach(s => {
                     let opt = document.createElement('option');
                     opt.value = s.id;
                     opt.textContent = s.name;
                     serieSelect.appendChild(opt);
                 });
-                status.textContent = "Listo para buscar.";
-            } catch (e) { status.textContent = "Error cargando series."; }
+                status.textContent = "Base de datos lista.";
+            } catch (e) { status.textContent = "Error de conexión."; }
 
-            // 2. FUNCIÓN DE BÚSQUEDA AVANZADA
             async function buscar() {
                 const nombre = document.getElementById('pokemonName').value.trim();
                 const categoria = document.getElementById('categoryFilter').value;
@@ -85,51 +75,58 @@
                 grid.innerHTML = '';
                 todasLasCartas = [];
                 indiceActual = 0;
-                status.textContent = 'Filtrando pool de cartas...';
+                status.textContent = 'Buscando...';
 
                 try {
-                    // Construcción de URL según tu documentación de filtros
-                    let url = 'api.tcgdex.net?';
-                    if (nombre) url += 'name=' + encodeURIComponent(nombre) + '&';
-                    if (categoria) url += 'category=' + categoria + '&';
-                    if (serie) url += 'serie=' + serie;
+                    var urlApi = 'api.tcgdex.net?';
+                    if (nombre) urlApi += 'name=' + encodeURIComponent(nombre) + '&';
+                    if (categoria) urlApi += 'category=' + categoria + '&';
+                    if (serie) urlApi += 'serie=' + serie;
 
-                    const res = await fetch(url);
-                    if (!res.ok) throw new Error();
+                    const res = await fetch(urlApi);
                     todasLasCartas = await res.json();
 
-                    status.textContent = `Encontradas: ${todasLasCartas.length} cartas.`;
+                    if (!todasLasCartas || todasLasCartas.length === 0) {
+                        status.textContent = 'Sin resultados.';
+                        return;
+                    }
+
+                    status.textContent = 'Encontradas: ' + todasLasCartas.length;
                     cargarMas();
-                } catch (err) {
-                    status.textContent = 'Sin resultados para estos filtros.';
-                }
+                } catch (err) { status.textContent = 'Error al buscar.'; }
             }
 
-            // 3. RENDERIZADO CON DATOS TÉCNICOS
             function cargarMas() {
                 const grupo = todasLasCartas.slice(indiceActual, indiceActual + cantidadPorCarga);
                 grupo.forEach(card => {
-                    const div = document.createElement('div');
-                    div.className = 'card';
-                    const img = card.image ? card.image + '/low.jpg' : 'via.placeholder.com';
-                    const setInfo = card.set ? card.set.name : 'N/A';
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'card';
                     
-                    div.innerHTML = `
-                        <img src="${img}" loading="lazy">
-                        <h3>${card.name} <span class="badge">${card.rarity || ''}</span></h3>
-                        <p><strong>Expansión:</strong> ${setInfo}</p>
-                        <p><strong>ID:</strong> ${card.id}</p>
-                        <a href="www.tcgplayer.com{encodeURIComponent(card.name + ' ' + setInfo)}" 
-                           target="_blank" class="price-link">💵 VER PRECIOS 2025</a>
-                    `;
-                    grid.appendChild(div);
+                    const cardName = card.name || 'N/A';
+                    const setName = (card.set && card.set.name) ? card.set.name : 'N/A';
+                    const imgUrl = card.image ? card.image + '/low.jpg' : 'via.placeholder.com';
+                    
+                    // CORRECCIÓN DEFINITIVA DE ENLACE EXTERNO
+                    var protocolo = "https://";
+                    var dominioPrecio = "www.tcgplayer.com";
+                    var busquedaPrecio = encodeURIComponent(cardName + " " + setName);
+                    var urlFinalPrecio = protocolo + dominioPrecio + busquedaPrecio;
+
+                    cardDiv.innerHTML = 
+                        '<img src="' + imgUrl + '" loading="lazy" onerror="this.src=\'via.placeholder.com\'">' +
+                        '<h3>' + cardName + '</h3>' +
+                        '<p><strong>Set:</strong> ' + setName + '</p>' +
+                        '<a href="' + urlFinalPrecio + '" target="_blank" class="price-link">🛒 VER PRECIO</a>';
+                    
+                    grid.appendChild(cardDiv);
                 });
                 indiceActual += cantidadPorCarga;
             }
 
-            // Scroll Infinito
-            const observer = new IntersectionObserver(ent => {
-                if (ent[0].isIntersecting && indiceActual < todasLasCartas.length) cargarMas();
+            const observer = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting && indiceActual < todasLasCartas.length) {
+                    cargarMas();
+                }
             }, { threshold: 0.1 });
             observer.observe(sentinel);
 
@@ -139,4 +136,6 @@
     </script>
 </body>
 </html>
+
+
 
