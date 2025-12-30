@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👾</text></svg>">
+    
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    
     <title>Poké-TCG Pixel Quest</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -14,6 +16,7 @@
             --slot-bg: #3e3e3e;
             --tibia-border: #555;
             --tibia-gold: #ffd700;
+            --tibia-green: #00ff00;
         }
 
         body {
@@ -25,31 +28,33 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            image-rendering: pixelated;
         }
 
         h1 {
             color: var(--tibia-gold);
-            text-shadow: 4px 4px #000;
-            font-size: 16px;
-            margin-bottom: 25px;
+            text-shadow: 3px 3px #000;
+            font-size: 14px;
+            margin: 20px 0;
             text-align: center;
         }
 
+        /* Buscador Estilo RPG Clásico */
         .search-container {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             display: flex;
-            gap: 10px;
+            gap: 5px;
         }
 
         input {
             background: #000;
             border: 3px double var(--tibia-border);
-            color: #00ff00;
+            color: var(--tibia-green);
             padding: 10px;
             font-family: 'Press Start 2P', cursive;
-            font-size: 8px;
+            font-size: 9px;
             outline: none;
-            width: 180px;
+            width: 200px;
         }
 
         button {
@@ -58,59 +63,64 @@
             color: white;
             cursor: pointer;
             font-family: 'Press Start 2P', cursive;
-            font-size: 8px;
+            font-size: 9px;
             padding: 10px;
         }
 
         button:active { border-style: inset; }
 
+        /* Grilla de Inventario */
         #inventory-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
             width: 100%;
-            max-width: 900px;
+            max-width: 850px;
             background: #2a2a2a;
-            border: 6px inset var(--tibia-border);
+            border: 5px inset var(--tibia-border);
             padding: 15px;
         }
 
+        /* Slots de Cartas (Estilo Tibia-Like) */
         .card-slot {
             background: var(--slot-bg);
             border: 3px outset var(--tibia-border);
-            padding: 8px;
+            padding: 10px;
             text-align: center;
-            transition: transform 0.1s;
-            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.1s;
         }
 
         .card-slot:hover {
             border-color: var(--tibia-gold);
             background: #4a4a4a;
+            transform: scale(1.03);
         }
 
         .card-slot img {
             width: 100%;
             height: auto;
             border: 1px solid #000;
+            margin-bottom: 10px;
+            /* Renderizado de alta fidelidad pixelada */
             image-rendering: pixelated;
-            image-rendering: crisp-edges;
             background: #111;
         }
 
         .card-name {
-            font-size: 7px;
-            margin-top: 8px;
+            font-size: 8px;
             color: #fff;
             text-transform: uppercase;
-            word-wrap: break-word;
+            line-height: 1.4;
         }
 
-        .status-msg {
+        .msg {
             grid-column: 1 / -1;
             text-align: center;
+            padding: 40px;
             color: var(--tibia-gold);
-            padding: 20px;
             font-size: 10px;
         }
     </style>
@@ -120,48 +130,43 @@
     <h1>POKÉMON TCG CHECKLIST</h1>
 
     <div class="search-container">
-        <input type="text" id="pokemon-search" placeholder="BUSCAR...">
-        <button id="btn-search">EXECUTAR</button>
+        <input type="text" id="pokemon-search" placeholder="NOMBRE DEL ITEM...">
+        <button id="btn-search">BUSCAR</button>
     </div>
 
     <div id="inventory-grid">
-        <div class="status-msg">ESPERANDO ORDEN...</div>
+        <div class="msg">CARGANDO MAPA...</div>
     </div>
 
     <script>
-        const API_BASE = 'https://api.tcgdex.net/v2/es';
+        // URL oficial corregida
+        const API_URL = 'https://api.tcgdex.net/v2/es';
 
-        async function fetchCards(name = '') {
+        async function loadCards(name = '') {
             const grid = document.getElementById('inventory-grid');
-            grid.innerHTML = '<div class="status-msg">CONECTANDO AL REINO...</div>';
+            grid.innerHTML = '<div class="msg">CONECTANDO AL SERVIDOR...</div>';
             
             try {
-                // Endpoint corregido: Si no hay nombre, pedimos cartas generales
-                // Si hay nombre, usamos el buscador de cartas
-                let url = name 
-                    ? `${API_BASE}/cards?name=${encodeURIComponent(name)}`
-                    : `${API_BASE}/cards`;
-
-                console.log("Invocando:", url);
-
-                const response = await fetch(url);
-                const data = await response.json();
-
-                // LOGICA DE EXTRACCION: La API devuelve o un Array directo o un objeto con .data
-                let cards = Array.isArray(data) ? data : data.data;
-
-                // Limitar a 24 para no saturar
-                cards = cards.slice(0, 24);
+                // Endpoint: Si hay nombre busca cartas, si no, lista general
+                const path = name ? `/cards?name=${encodeURIComponent(name)}` : '/cards';
+                const response = await fetch(API_URL + path);
+                
+                if (!response.ok) throw new Error('Error de red');
+                
+                const rawData = await response.json();
+                
+                // La API entrega los datos en un array o en .data dependiendo del endpoint
+                const cards = Array.isArray(rawData) ? rawData : rawData.data;
 
                 grid.innerHTML = '';
 
                 if (!cards || cards.length === 0) {
-                    grid.innerHTML = '<div class="status-msg">EL ITEM NO EXISTE.</div>';
+                    grid.innerHTML = '<div class="msg">NO SE ENCONTRARON CARTAS.</div>';
                     return;
                 }
 
-                cards.forEach(card => {
-                    // Solo mostrar si tiene imagen definida
+                // Tomamos las primeras 24 para que cargue rápido
+                cards.slice(0, 24).forEach(card => {
                     if (card.image) {
                         const slot = document.createElement('div');
                         slot.className = 'card-slot';
@@ -173,27 +178,28 @@
                     }
                 });
 
-            } catch (error) {
-                console.error("Error de Magia:", error);
-                grid.innerHTML = '<div class="status-msg" style="color: #ff4444;">ERROR: FALLO DE CONEXIÓN.</div>';
+            } catch (err) {
+                console.error(err);
+                grid.innerHTML = '<div class="msg" style="color:red">ERROR DE CONEXIÓN.</div>';
             }
         }
 
-        // Eventos de usuario
+        // Eventos
         document.getElementById('btn-search').onclick = () => {
-            const query = document.getElementById('pokemon-search').value;
-            fetchCards(query);
+            const val = document.getElementById('pokemon-search').value;
+            loadCards(val);
         };
 
-        document.getElementById('pokemon-search').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') fetchCards(e.target.value);
-        });
+        document.getElementById('pokemon-search').onkeydown = (e) => {
+            if (e.key === 'Enter') loadCards(e.target.value);
+        };
 
-        // Carga inicial automática
-        window.onload = () => fetchCards();
+        // Inicio automático
+        window.onload = () => loadCards();
     </script>
 </body>
 </html>
+
 
 
 
