@@ -2,164 +2,70 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Poke-TCG Quest</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:,"> 
+    <title>Poke-TCG Pixel Quest</title>
     <style>
-        body {
-            background-color: #222; /* Fondo gris oscuro tipo Tibia */
-            color: #ccc;
-            font-family: 'Press Start 2P', cursive;
-            margin: 0;
-            padding: 20px;
-            image-rendering: pixelated;
-        }
-
-        #game-window {
-            border: 6px outset #555; /* Efecto de relieve antiguo */
-            background-color: #3e3e3e;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            color: #ffd700;
-            text-shadow: 4px 4px #000;
-            margin-bottom: 20px;
-        }
-
-        /* Grilla de cartas como slots de inventario */
-        #inventory-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 15px;
-            border: 4px inset #222;
-            padding: 20px;
-            background-color: #1a1a1a;
-        }
-
-        .card-slot {
-            border: 3px solid #444;
-            background: #2a2a2a;
-            padding: 5px;
-            text-align: center;
-            font-size: 8px;
-            transition: 0.2s;
-        }
-
-        .card-slot:hover {
-            border-color: #00ff00;
-            cursor: pointer;
-            transform: translateY(-5px);
-        }
-
-        .card-slot img {
-            width: 100%;
-            height: auto;
-            margin-bottom: 5px;
-        }
-
-        .search-bar {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        input {
-            background: #000;
-            color: #00ff00;
-            border: 3px double #555;
-            padding: 10px;
-            font-family: 'Press Start 2P';
-            font-size: 10px;
-        }
+        /* Estilos rápidos para probar */
+        body { background: #1a1a1a; color: #fff; font-family: sans-serif; text-align: center; }
+        #inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 20px; }
+        .card-slot { border: 2px solid #444; padding: 5px; background: #222; image-rendering: pixelated; }
+        .card-slot img { width: 100%; height: auto; }
     </style>
 </head>
 <body>
 
-<div id="game-window">
-    <div class="header">POKÉMON TCG INVENTORY</div>
-    
-    <div class="search-bar">
-        <input type="text" id="pokemon-search" placeholder="BUSCAR POKEMON...">
-        <button id="btn-search" style="padding: 10px; cursor: pointer;">BUSCAR</button>
-    </div>
+    <h1>POKÉMON TCG PIXEL</h1>
+    <input type="text" id="pokemon-search" placeholder="Nombre del Pokémon...">
+    <button id="btn-search">BUSCAR</button>
 
-    <div id="inventory-grid">
-        </div>
-</div>
+    <div id="inventory-grid"></div>
 
-<script type="module">
-    // URL completa con protocolo obligatorio
-    const API_BASE = 'https://api.tcgdex.net/v2/es';
+    <script>
+        // URL CORREGIDA: tcgdex (con E)
+        const API_URL = 'https://api.tcgdex.net/v2/es';
 
-    async function buscarCartas(nombre = '') {
-        const contenedor = document.getElementById('inventory-grid');
-        contenedor.innerHTML = '<p class="loading">CONECTANDO AL SERVIDOR...</p>';
-        
-        try {
-            // Construimos la URL según tu documentación:
-            // Si hay nombre, usamos filtros. Si no, listamos las últimas cartas.
-            let url = `${API_BASE}/cards?limit=20`;
+        async function fetchCards(name = '') {
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '<p>CARGANDO...</p>';
             
-            if (nombre) {
-                // Usamos encodeURIComponent para manejar espacios o caracteres especiales
-                url = `${API_BASE}/cards?name=${encodeURIComponent(nombre)}&category=Pokemon&limit=20`;
-            }
-
-            console.log("Consultando:", url); // Para que veas en la consola si la URL es correcta
-
-            const respuesta = await fetch(url);
-            
-            if (!respuesta.ok) throw new Error(`Error API: ${respuesta.status}`);
-
-            const datos = await respuesta.json();
-            
-            // La API de TCGdex a veces devuelve un array directo o un objeto con .data
-            const listaCartas = Array.isArray(datos) ? datos : datos.data;
-
-            contenedor.innerHTML = ''; // Limpiar mensaje de carga
-
-            if (!listaCartas || listaCartas.length === 0) {
-                contenedor.innerHTML = '<p>ITEM NO ENCONTRADO EN EL MUNDO.</p>';
-                return;
-            }
-
-            listaCartas.forEach(carta => {
-                const slot = document.createElement('div');
-                slot.className = 'card-slot';
+            try {
+                // Si hay nombre, buscamos por nombre, si no, traemos una lista básica
+                const endpoint = name ? `/cards?name=${encodeURIComponent(name)}&limit=20` : '/cards?limit=20';
+                const response = await fetch(API_URL + endpoint);
                 
-                // Aplicamos el estilo pixelado directamente a la imagen
-                slot.innerHTML = `
-                    <img src="${carta.image}/low.jpg" 
-                         alt="${carta.name}" 
-                         style="image-rendering: pixelated; width: 100%; border: 2px solid #000;"
-                         onerror="this.src='https://via.placeholder.com/100x140?text=Error'">
-                    <div style="margin-top: 8px; font-size: 10px; color: #ffd700;">
-                        ${carta.name.toUpperCase()}
-                    </div>
-                `;
-                contenedor.appendChild(slot);
-            });
+                if (!response.ok) throw new Error('Error en la red');
+                
+                const result = await response.json();
+                const cards = result.data || result; // Maneja si es array o objeto con .data
 
-        } catch (error) {
-            console.error("Detalle del error:", error);
-            contenedor.innerHTML = `<p style="color: red;">ERROR DE CONEXIÓN: VER CONSOLA.</p>`;
+                grid.innerHTML = '';
+                cards.forEach(card => {
+                    if (card.image) {
+                        const slot = document.createElement('div');
+                        slot.className = 'card-slot';
+                        slot.innerHTML = `
+                            <img src="${card.image}/low.jpg" alt="${card.name}">
+                            <p style="font-size: 10px;">${card.name}</p>
+                        `;
+                        grid.appendChild(slot);
+                    }
+                });
+            } catch (error) {
+                console.error("Error:", error);
+                grid.innerHTML = '<p>ERROR: No se pudo conectar a la API. Revisa la URL.</p>';
+            }
         }
-    }
 
-    // Evento para el botón de buscar
-    document.getElementById('btn-search').addEventListener('click', () => {
-        const input = document.getElementById('pokemon-search').value;
-        buscarCartas(input);
-    });
+        document.getElementById('btn-search').onclick = () => {
+            const name = document.getElementById('pokemon-search').value;
+            fetchCards(name);
+        };
 
-    // Carga inicial
-    buscarCartas();
-</script>
+        // Carga inicial
+        fetchCards();
+    </script>
 </body>
 </html>
-
 
 
 
