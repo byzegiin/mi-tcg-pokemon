@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon TCG Live DB - 2025</title>
+    <title>Pokémon TCG Checklist 2025</title>
     <style>
         :root { --gold: #ffd700; --dark: #0a0a0a; --card-bg: #1a1a1a; }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--dark); color: #fff; display: flex; flex-direction: column; align-items: center; }
@@ -21,8 +21,9 @@
     </style>
 </head>
 <body>
+
     <div class="search-container">
-        <h1>Pokémon TCG Finder</h1>
+        <h1>Pokémon TCG Live DB</h1>
         <div class="controls">
             <input type="text" id="pokemonName" placeholder="Nombre (Mew, Lugia...)">
             <select id="categoryFilter">
@@ -36,7 +37,7 @@
             </select>
             <button id="btnBuscar">BUSCAR</button>
         </div>
-        <div id="status-msg">Cargando base de datos...</div>
+        <div id="status-msg">Iniciando sistema...</div>
     </div>
 
     <div class="cards-grid" id="grid"></div>
@@ -53,20 +54,22 @@
             const serieSelect = document.getElementById('serieFilter');
             const sentinel = document.getElementById('sentinel');
 
-            // 1. CARGAR SERIES (OBLIGATORIO HTTPS://)
+            // 1. CARGAR SERIES (CON PREFIJO FORZADO)
             async function cargarSeries() {
                 try {
-                    const res = await fetch("api.tcgdex.net");
-                    const series = await res.json();
+                    var protocolo = "https://";
+                    var server = "api.tcgdex.net/v2/es/series";
+                    var res = await fetch(protocolo + server);
+                    var series = await res.json();
                     series.forEach(s => {
                         let opt = document.createElement('option');
                         opt.value = s.id;
                         opt.textContent = s.name;
                         serieSelect.appendChild(opt);
                     });
-                    status.textContent = "Listo.";
+                    status.textContent = "Base de datos lista.";
                 } catch (e) {
-                    status.textContent = "Error al conectar con la API.";
+                    status.textContent = "Error de conexión con la API.";
                 }
             }
             cargarSeries();
@@ -80,27 +83,29 @@
                 grid.innerHTML = '';
                 todasLasCartas = [];
                 indiceActual = 0;
-                status.textContent = 'Buscando...';
+                status.textContent = 'Buscando en la nube...';
 
                 try {
-                    // CONSTRUCCIÓN MANUAL CON PROTOCOLO EXTERNO
-                    var url = "api.tcgdex.net?";
-                    if (nombre) url += "name=" + encodeURIComponent(nombre) + "&";
-                    if (categoria) url += "category=" + categoria + "&";
-                    if (serie) url += "serie=" + serie;
+                    // CONSTRUCCIÓN SEGURA DE URL
+                    var p = "https://";
+                    var d = "api.tcgdex.net/v2/es/cards?";
+                    var q = "";
+                    if (nombre) q += "name=" + encodeURIComponent(nombre) + "&";
+                    if (categoria) q += "category=" + categoria + "&";
+                    if (serie) q += "serie=" + serie;
 
-                    const res = await fetch(url);
+                    const res = await fetch(p + d + q);
                     todasLasCartas = await res.json();
 
                     if (!todasLasCartas || todasLasCartas.length === 0) {
-                        status.textContent = 'Sin resultados.';
+                        status.textContent = 'No se encontraron resultados.';
                         return;
                     }
 
                     status.textContent = 'Encontradas: ' + todasLasCartas.length;
                     cargarMas();
                 } catch (err) {
-                    status.textContent = 'Error de red.';
+                    status.textContent = 'Error: No se pudo conectar con el servidor externo.';
                 }
             }
 
@@ -115,12 +120,14 @@
                     
                     const tcgUrl = "www.tcgplayer.com" + encodeURIComponent(cName + " " + sName);
 
-                    cardDiv.innerHTML = `
-                        <img src="${img}" loading="lazy" onerror="this.src='via.placeholder.com'">
-                        <h3>${cName}</h3>
-                        <p><strong>Set:</strong> ${sName}</p>
-                        <a href="${tcgUrl}" target="_blank" class="price-link">🛒 VER PRECIO</a>
-                    `;
+                    cardDiv.innerHTML = 
+                        '<img src="' + img + '" loading="lazy" onerror="this.src=\'via.placeholder.com\'">' +
+                        '<div>' +
+                            '<h3>' + cName + '</h3>' +
+                            '<p><strong>Set:</strong> ' + sName + '</p>' +
+                        '</div>' +
+                        '<a href="' + tcgUrl + '" target="_blank" class="price-link">🛒 VER PRECIO</a>';
+                    
                     grid.appendChild(cardDiv);
                 });
                 indiceActual += cantidadPorCarga;
@@ -137,6 +144,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 
