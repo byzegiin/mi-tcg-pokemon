@@ -4,35 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <title>Pokémon TCG Finder</title>
+    <title>Pokémon TCG Checklist</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; padding-top: 20px; }
-        .card-container { transition: transform 0.2s; cursor: pointer; height: 100%; }
-        .card-container:hover { transform: scale(1.03); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-        .card-img-top { border-radius: 8px; background: #eee; min-height: 200px; }
-        .badge-type { font-size: 0.7rem; margin-right: 5px; }
-        #loading-spinner { display: none; }
-        .modal-body img { max-width: 100%; border-radius: 10px; margin-bottom: 15px; }
+        body { background: #f4f7f6; padding: 20px; }
+        .card-item { cursor: pointer; transition: 0.2s; border: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .card-item:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+        #results-grid { margin-top: 20px; }
+        .loading-overlay { display: none; text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="row justify-content-center mb-4">
-        <div class="col-md-8 text-center">
-            <h1 class="mb-4">Pokémon TCG Checklist</h1>
-            <div class="input-group">
-                <input type="text" id="search-input" class="form-control" placeholder="Ej: Pikachu, Charizard, Mew...">
-                <button class="btn btn-primary" id="search-btn">Buscar Carta</button>
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <h2 class="mb-4">Buscador de Cartas Pokémon</h2>
+            <div class="input-group mb-3">
+                <input type="text" id="search-input" class="form-control" placeholder="Escribe un nombre (ej: Mew)...">
+                <button class="btn btn-dark" id="search-btn">Buscar</button>
             </div>
-            <div id="loading-spinner" class="mt-3">
-                <div class="spinner-border text-primary" role="status"></div>
-            </div>
+            <div id="loading" class="loading-overlay">Cargando datos...</div>
         </div>
     </div>
 
-    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3" id="results-grid">
+    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3" id="results-grid">
         </div>
 </div>
 
@@ -40,13 +36,16 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">Detalles de la Carta</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="m-title">Detalles</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center" id="modalBody">
+            <div class="modal-body text-center">
+                <img id="m-img" src="" class="img-fluid rounded mb-3" alt="Carta">
+                <div id="m-desc" class="text-start mb-3 small"></div>
+                <div class="d-grid gap-2">
+                    <a id="m-price" href="#" target="_blank" class="btn btn-outline-success btn-sm">Ver Precio en Cardmarket</a>
+                    <button id="m-download" class="btn btn-outline-primary btn-sm">Descargar Imagen</button>
                 </div>
-            <div class="modal-footer">
-                <a href="#" id="price-btn" target="_blank" class="btn btn-success w-100">Ver precio en Cardmarket</a>
             </div>
         </div>
     </div>
@@ -56,88 +55,89 @@
 <script>
     const API_URL = 'https://api.tcgdex.net/v2/es';
     const grid = document.getElementById('results-grid');
-    const spinner = document.getElementById('loading-spinner');
-    const modal = new bootstrap.Modal(document.getElementById('cardModal'));
+    const input = document.getElementById('search-input');
+    const loading = document.getElementById('loading');
+    const cardModal = new bootstrap.Modal(document.getElementById('cardModal'));
 
-    async function fetchCards(name = '') {
+    async function search(query = '') {
         grid.innerHTML = '';
-        spinner.style.display = 'block';
-        
+        loading.style.display = 'block';
+
         try {
-            // Si no hay búsqueda, mostramos un set reciente para que no esté vacío
-            const endpoint = name ? `/cards?name=${encodeURIComponent(name)}` : '/sets/sv01';
-            const response = await fetch(API_URL + endpoint);
-            const data = await response.json();
-            
-            // La API devuelve .cards en sets o array directo en búsqueda
+            // Si no hay búsqueda, traemos cartas de un set fijo para que la página no esté vacía
+            const url = query ? `${API_URL}/cards?name=${encodeURIComponent(query)}` : `${API_URL}/sets/sv01`;
+            const res = await fetch(url);
+            const data = await res.json();
             const cards = data.cards || data.data || data;
 
-            spinner.style.display = 'none';
+            loading.style.display = 'none';
 
             if (!cards || cards.length === 0) {
-                grid.innerHTML = '<p class="text-center w-100">No se encontraron resultados.</p>';
+                grid.innerHTML = '<p class="text-center w-100">No se encontró nada.</p>';
                 return;
             }
 
-            cards.slice(0, 48).forEach(card => {
+            cards.slice(0, 40).forEach(card => {
                 if (card.image) {
-                    const col = document.createElement('div');
-                    col.className = 'col';
-                    col.innerHTML = `
-                        <div class="card card-container shadow-sm" onclick="showCardDetails('${card.id}')">
+                    const div = document.createElement('div');
+                    div.className = 'col';
+                    div.innerHTML = `
+                        <div class="card card-item" onclick="openDetails('${card.id}')">
                             <img src="${card.image}/low.jpg" class="card-img-top" alt="${card.name}">
                             <div class="card-body p-2 text-center">
-                                <small class="fw-bold">${card.name}</small>
+                                <span class="small fw-bold">${card.name}</span>
                             </div>
                         </div>
                     `;
-                    grid.appendChild(col);
+                    grid.appendChild(div);
                 }
             });
-        } catch (error) {
-            spinner.style.display = 'none';
-            grid.innerHTML = '<p class="text-danger text-center w-100">Error al conectar con la API.</p>';
+        } catch (e) {
+            loading.style.display = 'none';
+            grid.innerHTML = '<p class="text-danger">Error al cargar la API.</p>';
         }
     }
 
-    async function showCardDetails(id) {
-        document.getElementById('modalBody').innerHTML = '<div class="spinner-border" role="status"></div>';
-        modal.show();
-
+    async function openDetails(id) {
         try {
             const res = await fetch(`${API_URL}/cards/${id}`);
             const card = await res.json();
-
-            document.getElementById('modalTitle').innerText = card.name;
-            let infoHtml = `
-                <img src="${card.image}/high.jpg" class="img-fluid">
-                <div class="text-start p-2">
-                    <p><strong>Rareza:</strong> ${card.rarity || 'Desconocida'}</p>
-                    <p><strong>Serie:</strong> ${card.set.name}</p>
-                    <p><strong>Tipo:</strong> ${card.types ? card.types.join(', ') : 'N/A'}</p>
-                    <p><strong>Descripción:</strong> ${card.description || 'Sin descripción disponible.'}</p>
-                </div>
+            
+            document.getElementById('m-title').innerText = card.name;
+            document.getElementById('m-img').src = `${card.image}/high.jpg`;
+            document.getElementById('m-desc').innerHTML = `
+                <b>Serie:</b> ${card.set.name}<br>
+                <b>Rareza:</b> ${card.rarity || 'No especificada'}<br>
+                <b>Tipos:</b> ${card.types ? card.types.join(', ') : 'N/A'}
             `;
-            document.getElementById('modalBody').innerHTML = infoHtml;
-            document.getElementById('price-btn').href = `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${encodeURIComponent(card.name)}`;
-        } catch (err) {
-            document.getElementById('modalBody').innerHTML = 'Error al cargar detalles.';
-        }
+            
+            // Link de precios
+            document.getElementById('m-price').href = `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${encodeURIComponent(card.name)}`;
+            
+            // Botón de descarga
+            document.getElementById('m-download').onclick = () => downloadImage(`${card.image}/high.jpg`, card.name);
+
+            cardModal.show();
+        } catch (e) { alert('Error al cargar detalles'); }
     }
 
-    document.getElementById('search-btn').onclick = () => {
-        fetchCards(document.getElementById('search-input').value);
-    };
+    async function downloadImage(url, name) {
+        const image = await fetch(url);
+        const blob = await image.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${name}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 
-    document.getElementById('search-input').onkeypress = (e) => {
-        if (e.key === 'Enter') fetchCards(e.target.value);
-    };
+    document.getElementById('search-btn').onclick = () => search(input.value);
+    input.onkeyup = (e) => { if (e.key === 'Enter') search(input.value); };
 
-    // Carga inicial
-    window.onload = () => fetchCards();
+    // Ejecutar búsqueda inicial
+    window.onload = () => search();
 </script>
-
 </body>
 </html>
-
 
