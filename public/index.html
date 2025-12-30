@@ -78,6 +78,9 @@
             border: 3px outset var(--tibia-border);
             padding: 10px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .card-slot img {
@@ -114,64 +117,72 @@
     </div>
 
     <div id="inventory-grid">
-        <div class="msg">ESPERANDO ORDEN...</div>
+        <div class="msg" id="status-text">ESPERANDO ORDEN...</div>
     </div>
 
     <script>
+        // Cambiamos a la URL base que siempre responde
         const API_URL = 'https://api.tcgdex.net/v2/es';
 
         async function loadCards(query = '') {
             const grid = document.getElementById('inventory-grid');
-            grid.innerHTML = '<div class="msg">ABRIENDO COFRES...</div>';
+            const status = document.getElementById('status-text');
+            grid.innerHTML = '<div class="msg">REVISANDO EL INVENTARIO...</div>';
             
             try {
-                // Si no hay búsqueda, forzamos cartas de la serie 'Scarlet & Violet' (sv)
-                // Esto garantiza que siempre haya datos al inicio.
-                let url = query 
-                    ? `${API_URL}/cards?name=${encodeURIComponent(query)}&limit=20`
-                    : `${API_URL}/series/sv`; 
+                let url = '';
+                
+                // Si buscas algo, usamos el endpoint de cartas
+                if (query) {
+                    url = `${API_URL}/cards?name=${encodeURIComponent(query)}`;
+                } else {
+                    // Si está vacío, cargamos un SET específico (Scarlet & Violet Base) para asegurar resultados
+                    url = `${API_URL}/sets/sv1`; 
+                }
 
-                console.log("Intentando conectar a:", url);
-
+                console.log("Invocando hechizo a:", url);
                 const response = await fetch(url);
                 const data = await response.json();
 
-                let cards = [];
+                // La API de TCGdex guarda las cartas en 'cards' si es un set,
+                // o devuelve un array si es una búsqueda.
+                let cards = data.cards || data;
 
-                // Lógica de extracción ultra-segura
-                if (query) {
-                    cards = data.data || data; 
-                } else {
-                    // Si viene de /series/sv, las cartas están dentro de los sets
-                    if (data.sets && data.sets[0].cards) {
-                        cards = data.sets[0].cards;
-                    } else {
-                        cards = data.data || data;
-                    }
-                }
+                // Si por alguna razón es un objeto con .data (como en algunas versiones de la API)
+                if (data.data) cards = data.data;
 
                 grid.innerHTML = '';
 
                 if (!cards || !Array.isArray(cards) || cards.length === 0) {
-                    grid.innerHTML = '<div class="msg">EL COFRE ESTÁ VACÍO.</div>';
+                    grid.innerHTML = '<div class="msg">EL COFRE ESTÁ VACÍO (0 RESULTADOS).</div>';
                     return;
                 }
 
-                cards.slice(0, 24).forEach(card => {
-                    if (card.image) {
+                // Tomamos 30 cartas máximo
+                const limit = cards.slice(0, 30);
+
+                limit.forEach(card => {
+                    // Verificamos si tiene imagen o construimos la URL si falta
+                    const imagePath = card.image ? `${card.image}/low.jpg` : null;
+
+                    if (imagePath) {
                         const slot = document.createElement('div');
                         slot.className = 'card-slot';
                         slot.innerHTML = `
-                            <img src="${card.image}/low.jpg" alt="${card.name}">
+                            <img src="${imagePath}" alt="${card.name}" onerror="this.parentElement.style.display='none'">
                             <div class="card-name">${card.name}</div>
                         `;
                         grid.appendChild(slot);
                     }
                 });
 
+                if (grid.innerHTML === '') {
+                    grid.innerHTML = '<div class="msg">CARTAS ENCONTRADAS PERO SIN IMÁGENES DISPONIBLES.</div>';
+                }
+
             } catch (err) {
-                console.error("Fallo mágico:", err);
-                grid.innerHTML = '<div class="msg" style="color:red">ERROR: EL REINO NO RESPONDE.</div>';
+                console.error("Fallo crítico:", err);
+                grid.innerHTML = `<div class="msg" style="color:red">ERROR DE CONEXIÓN: ${err.message}</div>`;
             }
         }
 
@@ -179,16 +190,15 @@
             loadCards(document.getElementById('pokemon-search').value);
         };
 
-        // Carga inicial forzada
-        window.addEventListener('load', () => {
-            console.log("Página lista. Iniciando carga...");
-            loadCards();
-        });
+        // Escuchar Enter
+        document.getElementById('pokemon-search').onkeypress = (e) => {
+            if (e.key === 'Enter') loadCards(e.target.value);
+        };
+
+        // CARGA INICIAL
+        window.onload = () => loadCards();
     </script>
 </body>
 </html>
-
-
-
 
 
