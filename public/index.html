@@ -2,63 +2,194 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="data:,"> 
-    <title>Poke-TCG Pixel Quest</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👾</text></svg>">
+    <title>Poké-TCG Pixel Quest</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
     <style>
-        /* Estilos rápidos para probar */
-        body { background: #1a1a1a; color: #fff; font-family: sans-serif; text-align: center; }
-        #inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 20px; }
-        .card-slot { border: 2px solid #444; padding: 5px; background: #222; image-rendering: pixelated; }
-        .card-slot img { width: 100%; height: auto; }
+        :root {
+            --bg-dungeon: #1a1a1a;
+            --slot-bg: #3e3e3e;
+            --tibia-border: #555;
+            --tibia-gold: #ffd700;
+        }
+
+        body {
+            background-color: var(--bg-dungeon);
+            color: #e0e0e0;
+            font-family: 'Press Start 2P', cursive;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--tibia-gold);
+            text-shadow: 4px 4px #000;
+            font-size: 18px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        /* Buscador Estilo RPG */
+        .search-container {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            background: #000;
+            border: 3px double var(--tibia-border);
+            color: #00ff00;
+            padding: 10px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            outline: none;
+        }
+
+        button {
+            background: #4a4a4a;
+            border: 3px outset var(--tibia-border);
+            color: white;
+            cursor: pointer;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            padding: 10px;
+        }
+
+        button:active {
+            border-style: inset;
+        }
+
+        /* Grilla de Inventario Tibia-like */
+        #inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            width: 100%;
+            max-width: 900px;
+            background: #2a2a2a;
+            border: 6px inset var(--tibia-border);
+            padding: 15px;
+            image-rendering: pixelated;
+        }
+
+        /* Cada Slot de Carta */
+        .card-slot {
+            background: var(--slot-bg);
+            border: 3px outset var(--tibia-border);
+            padding: 8px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.1s;
+        }
+
+        .card-slot:hover {
+            border-color: var(--tibia-gold);
+            transform: scale(1.05);
+            background: #4a4a4a;
+        }
+
+        .card-slot img {
+            width: 100%;
+            height: auto;
+            border: 1px solid #000;
+            margin-bottom: 8px;
+            /* Forzar renderizado pixelado */
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .card-name {
+            font-size: 7px;
+            line-height: 1.2;
+            color: #fff;
+            text-transform: uppercase;
+        }
+
+        .loading-text {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--tibia-gold);
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>POKÉMON TCG PIXEL</h1>
-    <input type="text" id="pokemon-search" placeholder="Nombre del Pokémon...">
-    <button id="btn-search">BUSCAR</button>
+    <h1>POKÉMON TCG CHECKLIST</h1>
 
-    <div id="inventory-grid"></div>
+    <div class="search-container">
+        <input type="text" id="pokemon-search" placeholder="NOMBRE...">
+        <button id="btn-search">BUSCAR</button>
+    </div>
+
+    <div id="inventory-grid">
+        </div>
 
     <script>
-        // URL CORREGIDA: tcgdex (con E)
-        const API_URL = 'https://api.tcgdex.net/v2/es';
+        // URL Corregida: tcgdex (con E)
+        const API_BASE = 'https://api.tcgdex.net/v2/es';
 
         async function fetchCards(name = '') {
             const grid = document.getElementById('inventory-grid');
-            grid.innerHTML = '<p>CARGANDO...</p>';
+            grid.innerHTML = '<div class="loading-text">CARGANDO ITEMS...</div>';
             
             try {
-                // Si hay nombre, buscamos por nombre, si no, traemos una lista básica
-                const endpoint = name ? `/cards?name=${encodeURIComponent(name)}&limit=20` : '/cards?limit=20';
-                const response = await fetch(API_URL + endpoint);
-                
-                if (!response.ok) throw new Error('Error en la red');
+                // Endpoint según tu documentación
+                let url = `${API_BASE}/cards?limit=24`;
+                if (name) {
+                    url = `${API_BASE}/cards?name=${encodeURIComponent(name)}&limit=24`;
+                }
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Servidor no responde');
                 
                 const result = await response.json();
-                const cards = result.data || result; // Maneja si es array o objeto con .data
+                const cards = result.data || result;
 
                 grid.innerHTML = '';
+
+                if (!cards || cards.length === 0) {
+                    grid.innerHTML = '<div class="loading-text">NO HAY RESULTADOS.</div>';
+                    return;
+                }
+
                 cards.forEach(card => {
                     if (card.image) {
                         const slot = document.createElement('div');
                         slot.className = 'card-slot';
                         slot.innerHTML = `
-                            <img src="${card.image}/low.jpg" alt="${card.name}">
-                            <p style="font-size: 10px;">${card.name}</p>
+                            <img src="${card.image}/low.jpg" alt="${card.name}" onerror="this.src='https://via.placeholder.com/100x140?text=NO+IMG'">
+                            <div class="card-name">${card.name}</div>
                         `;
                         grid.appendChild(slot);
                     }
                 });
             } catch (error) {
-                console.error("Error:", error);
-                grid.innerHTML = '<p>ERROR: No se pudo conectar a la API. Revisa la URL.</p>';
+                console.error("Error API:", error);
+                grid.innerHTML = '<div class="loading-text" style="color: red;">ERROR DE CONEXIÓN AL MUNDO.</div>';
             }
         }
 
+        // Eventos
         document.getElementById('btn-search').onclick = () => {
             const name = document.getElementById('pokemon-search').value;
             fetchCards(name);
+        };
+
+        // Escuchar tecla Enter
+        document.getElementById('pokemon-search').onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                fetchCards(e.target.value);
+            }
         };
 
         // Carga inicial
@@ -66,6 +197,5 @@
     </script>
 </body>
 </html>
-
 
 
