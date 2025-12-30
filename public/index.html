@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,"> <!-- Esto quita el error del favicon.ico -->
     <title>Pokémon TCG Live DB - 2025</title>
     <style>
         :root { --gold: #ffd700; --dark: #0a0a0a; --card-bg: #1a1a1a; }
@@ -13,30 +14,29 @@
         button { padding: 12px 25px; border-radius: 8px; border: none; background: var(--gold); color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; }
         button:hover { background: #fff; transform: scale(1.05); }
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; width: 95%; max-width: 1200px; padding: 20px 0; }
-        .card { background: var(--card-bg); border: 1px solid #333; border-radius: 15px; padding: 15px; text-align: left; transition: 0.3s; display: flex; flex-direction: column; height: 100%; }
-        .card:hover { border-color: var(--gold); box-shadow: 0 0 15px var(--gold); }
+        .card { background: var(--card-bg); border: 1px solid #333; border-radius: 15px; padding: 15px; text-align: left; display: flex; flex-direction: column; height: 100%; }
         .card img { width: 100%; border-radius: 10px; min-height: 280px; background: #000; margin-bottom: 12px; }
         .card h3 { margin: 0 0 8px; color: var(--gold); font-size: 1.1em; }
         .card p { font-size: 0.9em; margin: 4px 0; color: #ccc; }
-        .price-link { display: block; margin-top: auto; padding: 12px; background: var(--gold); color: #000; text-decoration: none; border-radius: 6px; font-weight: bold; text-align: center; font-size: 0.9em; }
+        .price-link { display: block; margin-top: auto; padding: 12px; background: var(--gold); color: #000; text-decoration: none; border-radius: 6px; font-weight: bold; text-align: center; }
         #status-msg { color: var(--gold); font-weight: bold; height: 20px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div class="search-container">
-        <h1>Pokémon TCG Live DB</h1>
+        <h1>Pokémon TCG Finder</h1>
         <div class="controls">
-            <input type="text" id="pokemonName" placeholder="Nombre (Mew, Raichu...)">
+            <input type="text" id="pokemonName" placeholder="Ej: Lugia, Mew...">
             <select id="categoryFilter">
                 <option value="">Categorías</option>
                 <option value="Pokemon">Pokémon</option>
                 <option value="Trainer">Entrenador</option>
                 <option value="Energy">Energía</option>
             </select>
-            <button id="btnBuscar">BUSCAR CARTAS</button>
+            <button id="btnBuscar">BUSCAR</button>
         </div>
-        <div id="status-msg">Cargando base de datos...</div>
+        <div id="status-msg">Cargando sistema...</div>
     </div>
 
     <div class="cards-grid" id="grid"></div>
@@ -56,67 +56,59 @@
                 grid.innerHTML = '';
                 todas = [];
                 indice = 0;
-                status.textContent = 'Consultando API externa...';
+                status.textContent = 'Buscando en la base de datos...';
 
                 try {
-                    // CONSTRUCCIÓN DE URL ABSOLUTA FORZADA (EVITA EL ERROR 404)
-                    let apiURL = new URL("api.tcgdex.net");
-                    if (nombre) apiURL.searchParams.append("name", nombre);
-                    if (categoria) apiURL.searchParams.append("category", categoria);
+                    // USO DE URL ABSOLUTA PARA EVITAR EL ERROR 404 DE LOCALHOST/RENDER
+                    const url = new URL("api.tcgdex.net");
+                    if (nombre) url.searchParams.append("name", nombre);
+                    if (categoria) url.searchParams.append("category", categoria);
 
-                    const res = await fetch(apiURL.href);
+                    const res = await fetch(url.href);
                     if (!res.ok) throw new Error();
                     
                     todas = await res.json();
-                    status.textContent = "Encontradas: " + todas.length + " cartas.";
+                    status.textContent = "Resultados: " + todas.length;
                     cargarMas();
                 } catch (err) {
-                    status.textContent = "Error: No se pudo conectar con el servidor de cartas.";
+                    status.textContent = "Error de conexión con la API.";
                 }
             }
 
             function cargarMas() {
                 const grupo = todas.slice(indice, indice + 12);
                 grupo.forEach(card => {
-                    const cardDiv = document.createElement('div');
-                    cardDiv.className = 'card';
-                    
-                    const cName = card.name || 'N/A';
-                    const sName = (card.set && card.set.name) ? card.set.name : 'Expansión Desconocida';
+                    const div = document.createElement('div');
+                    div.className = 'card';
+                    const sName = (card.set && card.set.name) ? card.set.name : 'N/A';
                     const img = card.image ? (card.image + "/low.jpg") : "via.placeholder.com";
                     
-                    // CORRECCIÓN FINAL PARA TCGPLAYER: Protocolo HTTPS forzado
-                    const linkExterno = "www.tcgplayer.com" + encodeURIComponent(cName + " " + sName);
+                    // Link absoluto con protocolo HTTPS
+                    const tcgUrl = "www.tcgplayer.com" + encodeURIComponent(card.name + " " + sName);
 
-                    cardDiv.innerHTML = `
-                        <img src="${img}" loading="lazy" onerror="this.src='via.placeholder.com'">
-                        <div>
-                            <h3>${cName}</h3>
-                            <p><strong>Expansión:</strong> ${sName}</p>
-                            <p><strong>ID:</strong> ${card.id}</p>
-                        </div>
-                        <a href="${linkExterno}" target="_blank" class="price-link">🛒 VER PRECIOS REALES</a>
+                    div.innerHTML = `
+                        <img src="${img}" loading="lazy">
+                        <h3>${card.name}</h3>
+                        <p><strong>Expansión:</strong> ${sName}</p>
+                        <a href="${tcgUrl}" target="_blank" class="price-link">🛒 VER PRECIOS</a>
                     `;
-                    grid.appendChild(cardDiv);
+                    grid.appendChild(div);
                 });
                 indice += 12;
             }
 
-            // Scroll Infinito con IntersectionObserver
-            const observer = new IntersectionObserver(ent => {
+            const obs = new IntersectionObserver(ent => {
                 if (ent.isIntersecting && indice < todas.length) cargarMas();
             }, { threshold: 0.1 });
-            
-            observer.observe(document.getElementById('sentinel'));
+            obs.observe(document.getElementById('sentinel'));
 
             document.getElementById('btnBuscar').addEventListener('click', buscar);
             document.getElementById('pokemonName').addEventListener('keypress', (e) => { if(e.key === 'Enter') buscar(); });
-            status.textContent = "Listo para buscar.";
+            status.textContent = "Listo.";
         });
     </script>
 </body>
 </html>
-
 
 
 
