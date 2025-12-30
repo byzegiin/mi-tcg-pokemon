@@ -28,6 +28,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            /* Mejora el renderizado de pixeles en todo el sitio */
             image-rendering: pixelated;
         }
 
@@ -67,9 +68,10 @@
             padding: 10px;
         }
 
+        button:hover { background: #5a5a5a; }
         button:active { border-style: inset; }
 
-        /* Grilla de Inventario */
+        /* Grilla de Inventario estilo Tibia */
         #inventory-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -79,9 +81,10 @@
             background: #2a2a2a;
             border: 5px inset var(--tibia-border);
             padding: 15px;
+            min-height: 300px;
         }
 
-        /* Slots de Cartas (Estilo Tibia-Like) */
+        /* Slots de Cartas */
         .card-slot {
             background: var(--slot-bg);
             border: 3px outset var(--tibia-border);
@@ -104,7 +107,7 @@
             height: auto;
             border: 1px solid #000;
             margin-bottom: 10px;
-            /* Renderizado de alta fidelidad pixelada */
+            /* Crucial para Estilo Pixelado RPG Clásico */
             image-rendering: pixelated;
             background: #111;
         }
@@ -114,6 +117,7 @@
             color: #fff;
             text-transform: uppercase;
             line-height: 1.4;
+            word-wrap: break-word;
         }
 
         .msg {
@@ -135,37 +139,37 @@
     </div>
 
     <div id="inventory-grid">
-        <div class="msg">CARGANDO MAPA...</div>
+        <div class="msg">INICIALIZANDO MUNDO...</div>
     </div>
 
     <script>
-        // URL oficial corregida
+        // URL oficial con 'e' corregida
         const API_URL = 'https://api.tcgdex.net/v2/es';
 
         async function loadCards(name = '') {
             const grid = document.getElementById('inventory-grid');
-            grid.innerHTML = '<div class="msg">CONECTANDO AL SERVIDOR...</div>';
+            grid.innerHTML = '<div class="msg">CARGANDO DATOS DESDE LA API...</div>';
             
             try {
-                // Endpoint: Si hay nombre busca cartas, si no, lista general
+                // Si no hay nombre, mostramos cartas generales. Si hay nombre, usamos filtro.
                 const path = name ? `/cards?name=${encodeURIComponent(name)}` : '/cards';
                 const response = await fetch(API_URL + path);
                 
-                if (!response.ok) throw new Error('Error de red');
+                if (!response.ok) throw new Error('Error en la conexión');
                 
                 const rawData = await response.json();
                 
-                // La API entrega los datos en un array o en .data dependiendo del endpoint
+                // La API entrega un array directo o un objeto .data según el endpoint
                 const cards = Array.isArray(rawData) ? rawData : rawData.data;
 
                 grid.innerHTML = '';
 
                 if (!cards || cards.length === 0) {
-                    grid.innerHTML = '<div class="msg">NO SE ENCONTRARON CARTAS.</div>';
+                    grid.innerHTML = '<div class="msg">ITEM NO ENCONTRADO.</div>';
                     return;
                 }
 
-                // Tomamos las primeras 24 para que cargue rápido
+                // Mostramos 24 para no saturar el servidor
                 cards.slice(0, 24).forEach(card => {
                     if (card.image) {
                         const slot = document.createElement('div');
@@ -179,12 +183,12 @@
                 });
 
             } catch (err) {
-                console.error(err);
-                grid.innerHTML = '<div class="msg" style="color:red">ERROR DE CONEXIÓN.</div>';
+                console.error("Error detectado:", err);
+                grid.innerHTML = '<div class="msg" style="color:#ff4444">ERROR: FALLO DE CONEXIÓN AL REINO.</div>';
             }
         }
 
-        // Eventos
+        // Controladores de eventos
         document.getElementById('btn-search').onclick = () => {
             const val = document.getElementById('pokemon-search').value;
             loadCards(val);
@@ -194,8 +198,8 @@
             if (e.key === 'Enter') loadCards(e.target.value);
         };
 
-        // Inicio automático
-        window.onload = () => loadCards();
+        // Carga inicial al entrar
+        window.addEventListener('load', () => loadCards());
     </script>
 </body>
 </html>
